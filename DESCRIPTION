@@ -1,11 +1,11 @@
 Package: MacroDiffusionIndex
 Type: Package
-Title: What the Package Does (Title Case)
+Title: Machine Learning for Macro Economic Diffusion Indexes
 Version: 0.1.0
-Author: Who wrote it
-Maintainer: The package maintainer <yourself@somewhere.net>
-Description: More about what it does (maybe more than one line)
-    Use four spaces when indenting paragraphs within the Description.
-License: What license is it under?
+Author: Rishi R <rishiramesh08@gmail.com>
+Maintainer: Rishi R <rishiramesh08@gmail.com>
+Description: A R Package to apply Machine Learning 
+             to Macro Economic Diffusion Indexes.
+License: GPL-3
 Encoding: UTF-8
 LazyData: true
