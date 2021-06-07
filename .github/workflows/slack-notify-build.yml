@@ -1,11 +1,3 @@
-uses: voxmedia/github-action-slack-notify-build@v1
-with:
-  channel: 04-ml-macro-diffusion-indexes
-  status: STARTED
-  color: good
-env:
-  SLACK_BOT_TOKEN: ${{ secrets.SLACK_NOTIFICATIONS_BOT_TOKEN }}
-
 - name: Notify slack success
   if: success()
   id: slack # IMPORTANT: reference this step ID value in future Slack steps
