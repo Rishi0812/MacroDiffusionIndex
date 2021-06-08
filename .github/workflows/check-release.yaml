@@ -10,7 +10,7 @@ on:
       - main
       - master
 
-name: R-CMD-check
+name: R-CMD-check_old
 
 jobs:
   R-CMD-check:
