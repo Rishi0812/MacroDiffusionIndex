@@ -16,7 +16,7 @@ knitr::opts_chunk$set(
 # MacroDiffusionIndex
 
 <!-- badges: start -->
-[![GitHub Action Slack Notify CI](https://github.com/Rishi0812/MacroDiffusionIndex/workflows/R-CMD-check/badge.svg)](https://github.com/Rishi0812/MacroDiffusionIndex/actions)
+![R-CMD-check](https://github.com/Rishi0812/MacroDiffusionIndex/actions/workflows/slack-notify-build.yml/badge.svg)
 <!-- badges: end -->
 
 A R Package to apply Machine Learning to Macro Economic Diffusion Indexes
