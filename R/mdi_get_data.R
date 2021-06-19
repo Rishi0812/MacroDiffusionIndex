@@ -1,5 +1,7 @@
 #' Get Dataset
 #'
+#' @param x
+#'
 #' @return data
 #' @export
 #'
@@ -7,8 +9,7 @@
 #'mdi_get_data()
 #'
 
-mdi_get_data <- function(){
-  path <- system.file("extdata", "GSCO_SPX_Technical_CSV.csv", package = "MacroDiffusionIndex")
-  data <- read.csv(path)
+mdi_get_data <- function(x){
+  print(paste0("Hello World!"))
 
 }
