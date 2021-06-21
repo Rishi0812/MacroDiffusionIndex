@@ -12,3 +12,7 @@ LazyData: true
 RoxygenNote: 7.0.2
 URL: https://github.com/Rishi0812/MacroDiffusionIndex
 BugReports: https://github.com/Rishi0812/MacroDiffusionIndex/issues
+Suggests: 
+    knitr,
+    rmarkdown
+VignetteBuilder: knitr

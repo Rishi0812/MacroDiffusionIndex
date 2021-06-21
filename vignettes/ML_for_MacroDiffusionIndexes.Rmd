@@ -1,0 +1,19 @@
+---
+title: "ML_for_MacroDiffusionIndexes"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{ML_for_MacroDiffusionIndexes}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(MacroDiffusionIndex)
+```
