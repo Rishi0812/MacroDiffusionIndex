@@ -1,5 +1,5 @@
 ---
-title: "ML_for_MacroDiffusionIndexes"
+title: "ML for MacroDiffusionIndexes"
 output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{ML_for_MacroDiffusionIndexes}
