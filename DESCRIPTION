@@ -17,3 +17,5 @@ Suggests:
     rmarkdown,
     markdown
 VignetteBuilder: knitr
+Imports: 
+    quantmod
