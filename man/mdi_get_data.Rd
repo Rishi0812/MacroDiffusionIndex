@@ -4,10 +4,10 @@
 \alias{mdi_get_data}
 \title{Get Dataset}
 \usage{
-mdi_get_data(x)
+mdi_get_data(data)
 }
 \arguments{
-\item{x}{}
+\item{data}{}
 }
 \value{
 data
