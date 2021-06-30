@@ -16,6 +16,9 @@ Suggests:
     knitr,
     rmarkdown,
     markdown
+Depends: 
+    R (>= 2.15),
+    quantmod (>= 0.4.18) 
 VignetteBuilder: knitr
 Imports: 
     quantmod
