@@ -1,4 +1,6 @@
-#' Get Dataset
+#' @title  Function to parse all the required Dataset
+#'
+#' @description The mdi_get_data() funtion utilizes funtions of 'quantmod' packages to source required datasets from fred in xts format.
 #'
 #' @param data
 #'
@@ -9,7 +11,7 @@
 #'
 #' @examples
 #'mdi_get_data()
-#'
+#'The required datasets will be stored in Global Environment
 
 mdi_get_data <- function(data){
 
