@@ -2,7 +2,7 @@
 % Please edit documentation in R/mdi_get_data.R
 \name{mdi_get_data}
 \alias{mdi_get_data}
-\title{Get Dataset}
+\title{Function to parse all the required Dataset}
 \usage{
 mdi_get_data(data)
 }
@@ -13,9 +13,9 @@ mdi_get_data(data)
 data
 }
 \description{
-Get Dataset
+The mdi_get_data() funtion utilizes funtions of 'quantmod' packages to source required datasets from fred in xts format.
 }
 \examples{
 mdi_get_data()
-
+The required datasets will be stored in Global Environment
 }
