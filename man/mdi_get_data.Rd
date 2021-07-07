@@ -4,7 +4,7 @@
 \alias{mdi_get_data}
 \title{Function to parse all the required Dataset}
 \usage{
-mdi_get_data(data)
+mdi_get_data()
 }
 \arguments{
 \item{data}{}
@@ -17,5 +17,5 @@ The mdi_get_data() funtion utilizes funtions of 'quantmod' packages to source re
 }
 \examples{
 mdi_get_data()
-The required datasets will be stored in Global Environment
+
 }
