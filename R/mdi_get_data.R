@@ -11,9 +11,9 @@
 #'
 #' @examples
 #'mdi_get_data()
-#'The required datasets will be stored in Global Environment
+#'
 
-mdi_get_data <- function(data){
+mdi_get_data <- function(){
 
 ##Fundamental
 
