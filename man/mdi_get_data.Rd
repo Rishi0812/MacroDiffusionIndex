@@ -2,20 +2,88 @@
 % Please edit documentation in R/mdi_get_data.R
 \name{mdi_get_data}
 \alias{mdi_get_data}
-\title{Function to parse all the required Dataset}
+\title{Function to parse economic data}
 \usage{
-mdi_get_data()
+mdi_get_data(symbols = NULL)
 }
 \arguments{
-\item{data}{}
+\item{symbols}{Character vector of symbol names to download. Default: NULL, which will return all the symbols described in @details.}
 }
 \value{
-data
+Applicable time series data from FRED, stored as xts thanks to the
+internal getSymbols.FRED function. Data to be stored in a new environment called econ_data.
 }
 \description{
-The mdi_get_data() funtion utilizes funtions of 'quantmod' packages to source required datasets from fred in xts format.
+The mdi_get_data() function currently retrieves data from FRED.
+
+The 'default' series includes a range of indicators from Fundamental to
+Behavioral and Catalyst categories. The sub-categories and their respective
+tickers and descriptions are described in the Details section. Users can
+specify their own character of symbols TODO - add
+descriptions next to ticker
+}
+\details{
+The sub-categories and their respective tickers and descriptions are
+described below.\tabular{ll}{
+   FUNDAMENTAL \tab  \cr
+   Economic Trend: \tab  \cr
+   OECDLOLITOAASTSAM \tab TODO: add description \cr
+   ICSA \tab  \cr
+   INDPRO \tab  \cr
+   T10Y2Y \tab  \cr
+   BAA10Y \tab  \cr
+   --- \tab --- \cr
+   Liquidity: \tab  \cr
+   NFCI \tab  \cr
+   --- \tab --- \cr
+   Velocity: \tab  \cr
+   M2V \tab  \cr
+   TOTCI \tab  \cr
+   M0263AUSM500NNBR \tab  \cr
+   M0264AUSM500NNBR \tab  \cr
+   BOGZ1FA895050005Q \tab  \cr
+   --- \tab --- \cr
+   --- \tab --- \cr
+   BEHAVIORAL \tab  \cr
+   Confirmation Bias: Surveys \tab  \cr
+   UMCSENT \tab  \cr
+   CSUSHPISA \tab  \cr
+   SPCS20RSA \tab  \cr
+   --- \tab --- \cr
+   Representative Bias: Options Market \tab  \cr
+   VIXCLS \tab  \cr
+   VXVCLS \tab  \cr
+   EVZCLS \tab  \cr
+   THREEFYTP10 - \tab  \cr
+   --- \tab --- \cr
+   Cognitive Dissonance: \tab  \cr
+   EMVOVERALLEMV \tab  \cr
+   --- \tab --- \cr
+   Loss Aversion: \tab  \cr
+   --- \tab --- \cr
+   Anchoring Bias: \tab  \cr
+   --- \tab --- \cr
+   Framing Bias: \tab  \cr
+   --- \tab --- \cr
+   Overconfidence: \tab  \cr
+   --- \tab --- \cr
+   --- \tab --- \cr
+   CATALYST \tab  \cr
+   Earnings Surprise: \tab  \cr
+   --- \tab --- \cr
+   Economic Surprise: \tab  \cr
+   CFNAIMA3 \tab  \cr
+   STLENI \tab  \cr
+   STLFSI2 \tab  \cr
+   --- \tab --- \cr
+   Geopolitics: \tab  \cr
+   WLEMUINDXD \tab  \cr
+}
 }
 \examples{
+\dontrun{
 mdi_get_data()
+head(econ_data$ICSA)
+}
 
 }

@@ -1,77 +1,105 @@
-#' @title  Function to parse all the required Dataset
+#'@title  Function to parse economic data
 #'
-#' @description The mdi_get_data() funtion utilizes funtions of 'quantmod' packages to source required datasets from fred in xts format.
+#'@description The mdi_get_data() function currently retrieves data from FRED.
 #'
-#' @param data
+#'  The 'default' series includes a range of indicators from Fundamental to
+#'  Behavioral and Catalyst categories. The sub-categories and their respective
+#'  tickers and descriptions are described in the Details section. Users can
+#'  specify their own character of symbols TODO - add
+#'  descriptions next to ticker
 #'
-#' @return data
-#' @export
+#'@param symbols Character vector of symbol names to download. Default: NULL, which will return all the symbols described in @details.
 #'
-#' @import quantmod
+#'@details
+#'
+#'  The sub-categories and their respective tickers and descriptions are
+#'  described below.
+#'
+#'  | FUNDAMENTAL | |
+#'  | --- | --- |
+#'  | Economic Trend: | |
+#'  | OECDLOLITOAASTSAM | TODO: add description |
+#'  | ICSA | |
+#'  | INDPRO | |
+#'  | T10Y2Y | |
+#'  | BAA10Y | |
+#'  | --- | --- |
+#'  | Liquidity: | |
+#'  | NFCI | |
+#'  | --- | --- |
+#'  | Velocity: | |
+#'  | M2V | |
+#'  | TOTCI | |
+#'  | M0263AUSM500NNBR | |
+#'  | M0264AUSM500NNBR | |
+#'  | BOGZ1FA895050005Q | |
+#'  | --- | --- |
+#'  | --- | --- |
+#'  | BEHAVIORAL | |
+#'  | Confirmation Bias: Surveys | |
+#'  | UMCSENT | |
+#'  | CSUSHPISA | |
+#'  | SPCS20RSA | |
+#'  | --- | --- |
+#'  | Representative Bias: Options Market | |
+#'  | VIXCLS | |
+#'  | VXVCLS | |
+#'  | EVZCLS | |
+#'  | THREEFYTP10 - | |
+#'  | --- | --- |
+#'  | Cognitive Dissonance: | |
+#'  | EMVOVERALLEMV | |
+#'  | --- | --- |
+#'  | Loss Aversion: | |
+#'  | --- | --- |
+#'  | Anchoring Bias: | |
+#'  | --- | --- |
+#'  | Framing Bias: | |
+#'  | --- | --- |
+#'  | Overconfidence: | |
+#'  | --- | --- |
+#'  | --- | --- |
+#'  | CATALYST | |
+#'  | Earnings Surprise: | |
+#'  | --- | --- |
+#'  | Economic Surprise: | |
+#'  | CFNAIMA3 | |
+#'  | STLENI | |
+#'  | STLFSI2 | |
+#'  | --- | --- |
+#'  | Geopolitics: | |
+#'  | WLEMUINDXD | |
+#'
+#'@return Applicable time series data from FRED, stored as xts thanks to the
+#'  internal getSymbols.FRED function. Data to be stored in a new environment called econ_data.
+#'@export
+#'
+#'@import quantmod
 #'
 #' @examples
-#'mdi_get_data()
+#' \dontrun{
+#' mdi_get_data()
+#' head(econ_data$ICSA)
+#' }
 #'
 
-mdi_get_data <- function(){
+mdi_get_data <- function(symbols = NULL){
 
-##Fundamental
+  econ_data <- new.env()
 
-  #RELATIVE VALUATION
+  if(is.null(symbols)) {
+    symbols <- c('OECDLOLITOAASTSAM', 'ICSA', 'INDPRO', 'T10Y2Y', 'BAA10Y', # Economic Trend
+                 'NFCI', # Liquidity
+                 'M2V', 'TOTCI', 'M0263AUSM500NNBR', 'M0264AUSM500NNBR', 'BOGZ1FA895050005Q', # Velocity
+                 'UMCSENT', 'CSUSHPISA', 'SPCS20RSA', # Confirmation Bias: Surveys
+                 'VIXCLS', 'VXVCLS', 'EVZCLS', 'THREEFYTP10', # Representative Bias
+                 'EMVOVERALLEMV', # Cognitive Dissonance
+                 'CFNAIMA3', 'STLENI', 'STLFSI2', # Economic Surprise
+                 'WLEMUINDXD' # Geopolitics
+                 )
+  }
 
-  #ECONOMIC TREND
-  getSymbols.FRED('OECDLOLITOAASTSAM',env=globalenv())
-  getSymbols.FRED('ICSA',env=globalenv())
-  getSymbols.FRED('INDPRO',env=globalenv())
-  getSymbols.FRED('T10Y2Y',env=globalenv())
-  getSymbols.FRED('BAA10Y',env=globalenv())
-
-  #LIQUIDITY
-  getSymbols.FRED('NFCI',env=globalenv())
-
-  #VELOCITY
-  getSymbols.FRED('M2V',env=globalenv())
-  getSymbols.FRED('TOTCI',env=globalenv())
-  getSymbols.FRED('M0263AUSM500NNBR',env=globalenv())
-  getSymbols.FRED('M0264AUSM500NNBR',env=globalenv())
-  getSymbols.FRED('BOGZ1FA895050005Q',env=globalenv())
-
-##BEHAVIORAL
-
-  #CONFIRMATION BIAS: SURVEYS
-  getSymbols.FRED('UMCSENT',env=globalenv())
-  getSymbols.FRED('CSUSHPISA',env=globalenv())
-  getSymbols.FRED('SPCS20RSA',env=globalenv())
-
-  #REPRESNTATIVENESS BIAS: OPTIONS MARKET
-  getSymbols.FRED('VIXCLS',env=globalenv())
-  getSymbols.FRED('VXVCLS',env=globalenv())
-  getSymbols.FRED('EVZCLS',env=globalenv())
-  getSymbols.FRED('THREEFYTP10',env=globalenv())
-
-  #COGNITIVE DISSONANCE
-  getSymbols.FRED('EMVOVERALLEMV',env=globalenv())
-
-  #LOSS AVERSION
-
-  #ANCHORING BIAS
-
-  #FRAMING BIAS
-
-  #OVERCONFIDENCE
-
-
-##CATALYST
-
-  #EARNINGS SURPRISE
-
-  #ECONOMIC SURPRISE
-  getSymbols.FRED('CFNAIMA3',env=globalenv())
-  getSymbols.FRED('STLENI',env=globalenv())
-  getSymbols.FRED('STLFSI2',env=globalenv())
-
-  #GEOPOLITICS
-  getSymbols.FRED('WLEMUINDXD',env=globalenv())
+  getSymbols(Symbols = symbols, src='FRED', env = econ_data)
 
 }
 

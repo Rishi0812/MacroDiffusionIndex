@@ -21,3 +21,4 @@ Depends:
     quantmod
 VignetteBuilder: knitr
 Imports:
+Roxygen: list(markdown = TRUE)
