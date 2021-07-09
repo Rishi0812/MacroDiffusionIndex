@@ -78,14 +78,15 @@
 #'
 #' @examples
 #' \dontrun{
-#' mdi_get_data()
+#' econ_data$mdi_get_data()
+#' View(econ_data$NFCI)
 #' head(econ_data$ICSA)
 #' }
 #'
 
-mdi_get_data <- function(symbols = NULL){
+econ_data <- new.env() #Creates new environment
 
-  econ_data <- new.env()
+econ_data$mdi_get_data <- function(symbols = NULL){
 
   if(is.null(symbols)) {
     symbols <- c('OECDLOLITOAASTSAM', 'ICSA', 'INDPRO', 'T10Y2Y', 'BAA10Y', # Economic Trend
@@ -99,8 +100,7 @@ mdi_get_data <- function(symbols = NULL){
                  )
   }
 
-  getSymbols(Symbols = symbols, src='FRED', env = econ_data)
-
+    getSymbols(Symbols = symbols, src='FRED', env = econ_data) #Uses getSymbols function from quantmod to parse data into created environment
 }
 
 
