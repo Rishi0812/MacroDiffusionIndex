@@ -19,6 +19,16 @@ symbols <- c('OECDLOLITOAASTSAM', 'ICSA', 'INDPRO', 'T10Y2Y', 'BAA10Y', # Econom
 ### Get data
 getSymbols(Symbols = symbols, src='FRED', env = econ_data)
 
+## Add symbols_CSV
+symbols_CSV <- c("GSOC_20dayPutCall", "GSOC_SPX_EquityRiskPremium_23years_CSV")
+
+## Get CSV Data
+getSymbols.csv(Symbols = symbols_CSV,
+               env = econ_data,
+               dir="~/Documents/Rishi/GSoC_2021/Bloomberg-Dataset/GSOC_macro_Bloomberg_data",
+               col.names=c("Date","PX_LAST"),
+               return.class = "xts")
+
 ### Merge data - this will store it in a list
 data <- eapply(env = econ_data, FUN = merge.xts)
 
