@@ -1,8 +1,18 @@
 ---
-title: "ML for MacroDiffusionIndexes"
+title: "**Machine Learning for Macro Diffusion Indexes**"
+description: >
+  A brief vignette explaining the process of forecasting Macroeconomic timeseries   using both traditional method and applying Machine Learning Algorithmns by 
+  constructing Diffusion Indexes.
+header-includes:
+- \usepackage[default]{sourcesanspro}
+- \usepackage[T1]{fontenc}
 output: rmarkdown::html_vignette
+documentclass: extarticle
+fontsize: 12pt
+geometry: margin=2cm
+mainfont: SourceSansPro
 vignette: >
-  %\VignetteIndexEntry{ML_for_MacroDiffusionIndexes}
+  %\VignetteIndexEntry{**Machine Learning for Macro Diffusion Indexes**}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -14,6 +24,49 @@ knitr::opts_chunk$set(
 )
 ```
 
+### Introduction
+
+Macroeconomics (from the Greek prefix makro- meaning "large" + economics) is a branch of economics dealing with the performance, structure, behavior, and decision-making of an economy as a whole. For example, using interest rates, taxes and government spending to regulate an economy's growth and stability.
+
+The main goal of the project is to help macroeconomists to obtain useful insights from a dataset as a whole with the help of useful Machine Learning Algorithms by creating it's potential diffusion indexes.
+Time series analysis is an area of statistics that focuses on analyzing time-dependent data. Time series can be analyzed either descriptively or inferentially. This has led to different approaches depending on the type of information available in time-series data.
+
+We will be using the method of Vector Auto Regression for generating the forecasts initially and later proceed with the Machine Learning approach.
+\
+
+### Setting Up the R Environment
+
+We will start by calling the required R libraries for Data parsing, processing and manipulation.
+Here we have used two libraries, "quantmod" developed by [Joshua Ulrich](https://github.com/joshuaulrich).
+
 ```{r setup}
-library(MacroDiffusionIndex)
+require(quantmod)
+```
+
+### Parsing the Data
+
+Federal Reserve Economic Data (FRED) is an online database consisting of hundreds of thousands of economic data time series from scores of national, international, public, and private sources. FRED, created and maintained by the Research Department at the Federal Reserve Bank of St. Louis, goes far beyond simply providing data: It combines data with a powerful mix of tools that help the user understand, interact with, display, and disseminate the data. In essence, FRED helps users tell their data stories. 
+
+First we'll create a new environment and a vector object containing the specific names(symbols) of the dataset we will be using.
+
+```{r}
+#Create new environment
+econ_data <- new.env()
+
+symbols <- c('OECDLOLITOAASTSAM', 'ICSA', 'INDPRO', 'T10Y2Y', 'BAA10Y', # Economic Trend
+             'NFCI', # Liquidity
+             'M2V', 'TOTCI', 'M0263AUSM500NNBR', 'M0264AUSM500NNBR', 'BOGZ1FA895050005Q', # Velocity
+             'UMCSENT', 'CSUSHPISA', 'SPCS20RSA', # Confirmation Bias: Surveys
+             'VIXCLS', 'VXVCLS', 'EVZCLS', 'THREEFYTP10', # Representative Bias
+             'EMVOVERALLEMV', # Cognitive Dissonance
+             'CFNAIMA3', 'STLENI', 'STLFSI2', # Economic Surprise
+             'WLEMUINDXD' # Geopolitics
+)
+```
+
+Now we will be using the 'getSymbols()' function of the 'quantmod' package in order to import the required dataset from fred.
+The downloaded data will be stored in the form of xts timeseries object in the specified environment.
+
+```{r}
+getSymbols(Symbols = symbols, src='FRED', env = econ_data)
 ```
