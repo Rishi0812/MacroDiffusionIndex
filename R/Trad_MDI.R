@@ -1,6 +1,5 @@
 ### Add libraries
-require(quantmod)
-require(xts)
+library(quantmod)
 
 #Create new environment
 econ_data <- new.env()
@@ -16,27 +15,43 @@ symbols <- c('OECDLOLITOAASTSAM', 'ICSA', 'INDPRO', 'T10Y2Y', 'BAA10Y', # Econom
              'WLEMUINDXD' # Geopolitics
 )
 
-### Get data
-getSymbols(Symbols = symbols, src='FRED', env = econ_data)
 
+### Get data
+getSymbols(Symbols = symbols,
+           src='FRED',
+           env = econ_data)
 
 ## Get CSV Data
-dat <- read.csv("~/Documents/Rishi/GSoC_2021/Bloomberg-Dataset/GSOC_macro_Bloomberg_data/GSOC_20dayPutCall.csv")
+# dat <- read.csv("~/Documents/Rishi/GSoC_2021/Bloomberg-Dataset/GSOC_macro_Bloomberg_data/GSOC_20dayPutCall.csv")
+#
+# dat2 <- dat[-c(1:5), ]
+# colnames(dat2)[1] <- "Date"
+# colnames(dat2)[2] <- "PX_LAST"
+#
+# dat2$Date<-strftime(strptime(dat2$Date,"%m/%d/%Y"),"%Y-%m-%d")
+# PutCall <- xts(dat2[,2], as.Date(dat2[,1], format = "%Y-%m-%d", env = econ_data))
+#
+# rm(dat,dat2)
+#
+# #tail(PutCall)
 
-dat2 <- dat[-c(1:5), ]
-colnames(dat2)[1] <- "Date"
-colnames(dat2)[2] <- "PX_LAST"
+eapply(econ_data, start)
+eapply(econ_data, end)
+eapply(econ_data, frequency)
 
-dat2$Date<-strftime(strptime(dat2$Date,"%m/%d/%Y"),"%Y-%m-%d")
-PutCall <- xts(dat2[,2], as.Date(dat2[,1], format = "%Y-%m-%d", env = econ_data))
-
-rm(dat,dat2)
-
-tail(PutCall)
 
 
 ### Merge data - this will store it in a list
 data <- eapply(env = econ_data, FUN = merge.xts)
+
+fin <- merge(data$BAA10Y, data$BOGZ1FA895050005Q, data$CFNAIMA3,
+             data$CSUSHPISA, data$EMVOVERALLEMV, data$EVZCLS,
+             data$ICSA, data$INDPRO, data$NFCI, data$OECDLOLITOAASTSAM,
+             data$SPCS20RSA, data$STLENI, data$STLFSI2,
+             data$T10Y2Y, data$THREEFYTP10, data$TOTCI, data$UMCSENT,
+             data$VIXCLS, data$VXVCLS, data$WLEMUINDXD)
+
+fin=fin["1974-12-01/2020-12-01"]
 
 ### At this point, you may want to merge the data by timestamp, not sure.
 ### Alternative is to keep them separate, build the lags, and merge later after
