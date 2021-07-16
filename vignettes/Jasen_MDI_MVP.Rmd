@@ -17,7 +17,7 @@ This is just a document store of Jasen's progress using FRED data and the SWfore
 
 As of now, we are using only FRED data. Below are the periodicities of the data we have retrieved thus far. There are 3 quarterly series. We should review the methodology from the paper/s. For now i am converting to quarterly. Also note 2 of the series start in 1938 and end in 1940/41. We will remove those series.
 
-```{r get_data, echo=FALSE}
+```{r get_data, echo=FALSE, message=FALSE, warning=FALSE}
 ### Add libraries
 library(quantmod)
 
@@ -54,7 +54,7 @@ periodicities # view periodicities
 
 ```
 
-```{r convert_quarterly, echo=FALSE}
+```{r convert_quarterly, echo=FALSE, message=FALSE, warning=FALSE}
 data_quart <- lapply(data, to.quarterly, OHLC=FALSE)
 data_quart[["M0264AUSM500NNBR"]] <- NULL # remove from dataset
 data_quart[["M0263AUSM500NNBR"]] <- NULL # remove from dataset
@@ -62,7 +62,7 @@ data_quart[["M0263AUSM500NNBR"]] <- NULL # remove from dataset
 
 At this point, converting to quarterly gives us warning messages about missing values being removed. We will have to audit that for each symbol. For now, let's move onto a merge.
 
-```{r convert_quarterly, echo=FALSE}
+```{r merge, echo=FALSE}
 xts_data_quart <- do.call(merge.xts, data_quart)
 
 ```
@@ -128,5 +128,6 @@ idx_complete <- which(complete.cases(xts_data_quart) == TRUE)
 
 trim_data = xts_data_quart[idx_complete]
 results <- SWfore(y = trim_data$UMCSENT, x = trim_data[,-c(1,2)], orig = length(idx_complete)-2, m = 5)
+# results <- SWfore(y = trim_data$UMCSENT, x = trim_data[,-1], orig = length(idx_complete)-1, m = 5)
 
 ```
