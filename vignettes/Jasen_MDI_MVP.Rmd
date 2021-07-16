@@ -1,0 +1,132 @@
+---
+title: "Jasen_MDI_MVP"
+author: "Jasen Mackie"
+date: "16/07/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+This is just a document store of Jasen's progress using FRED data and the SWfore function to make forecasts of economic data.
+
+## Data
+
+As of now, we are using only FRED data. Below are the periodicities of the data we have retrieved thus far. There are 3 quarterly series. We should review the methodology from the paper/s. For now i am converting to quarterly. Also note 2 of the series start in 1938 and end in 1940/41. We will remove those series.
+
+```{r get_data, echo=FALSE}
+### Add libraries
+library(quantmod)
+
+#Create new environment
+fred_data <- new.env()
+
+### Add symbols
+symbols <- c('OECDLOLITOAASTSAM', 'ICSA', 'INDPRO', 'T10Y2Y', 'BAA10Y', # Economic Trend
+             'NFCI', # Liquidity
+             'M2V', 'TOTCI', 'M0263AUSM500NNBR', 'M0264AUSM500NNBR', 'BOGZ1FA895050005Q', # Velocity
+             'UMCSENT', 'CSUSHPISA', 'SPCS20RSA', # Confirmation Bias: Surveys
+             'VIXCLS', 'VXVCLS', 'EVZCLS', 'THREEFYTP10', # Representative Bias
+             'EMVOVERALLEMV', # Cognitive Dissonance
+             'CFNAIMA3', 'STLENI', 'STLFSI2', # Economic Surprise
+             'WLEMUINDXD' # Geopolitics
+)
+
+
+### Get data
+getSymbols(Symbols = symbols,
+           src='FRED',
+           env = fred_data)
+
+### Merge data - this will store it in a list
+data <- eapply(env = fred_data, FUN = merge.xts)
+
+#### get periodicity
+periodicities <- as.data.frame(do.call(rbind, lapply(data, periodicity)))
+# periodicities # view periodicities
+ls_periodicities <- lapply(data, periodicity)
+periodicities$start <- as.Date(sapply(ls_periodicities, "[[", 3))
+periodicities$end <- as.Date(sapply(ls_periodicities, "[[", 4))
+periodicities # view periodicities
+
+```
+
+```{r convert_quarterly, echo=FALSE}
+data_quart <- lapply(data, to.quarterly, OHLC=FALSE)
+data_quart[["M0264AUSM500NNBR"]] <- NULL # remove from dataset
+data_quart[["M0263AUSM500NNBR"]] <- NULL # remove from dataset
+```
+
+At this point, converting to quarterly gives us warning messages about missing values being removed. We will have to audit that for each symbol. For now, let's move onto a merge.
+
+```{r convert_quarterly, echo=FALSE}
+xts_data_quart <- do.call(merge.xts, data_quart)
+
+```
+
+Now we should be able to make forecasts with MTS and SWfore. However, we will need to identify the most complete data first, as eigen() dont take no NAs.
+
+Looks like we have NAs until 2013 Q2, and the last 2 observations are also not complete cases...we will need to remove those. We can use `complete.cases` to build an index of complete rows.
+
+It would appear the SWfore requires forecasts of at least 2 single one-step's ahead otherwise the matrix multiplication math does not work due to non-conformable arrays. If we want code to be able to make a single one-step forecast, we will need to write our own function. Not sure its necessary, but boiler plate code included in the below chunk if we need to. The forecast horizons from S&W were 6, 12 and 24 months. From Coulombe et al it was 1, 3, 9, 12 and 24 months...so if we want to forecast a single step-ahead we will need to edit the `SWfore` function for our purposes.
+
+```{r SWfore_edited, echo=FALSE}
+# "SWfore" <- function(y,x,orig,m){
+#    ### Performs Stock and Watson's diffusion index prediction
+#    ### y: dependent variable
+#    ### x: observed regressors
+#    ### orig: forecast origin
+#    ### m: selected number of PCs
+#    ###
+#    ### Output: Forecasts and MSE of forecasts (if data available)
+#    if(!is.matrix(x))x=as.matrix(x)
+#    nT=dim(x)[1]
+#    k=dim(x)[2]
+#    if(orig > nT)orig=nT
+#    if(m > k)m=k; if(m < 1)m=1
+#    # standardize the predictors
+#    x1=x[1:orig,]
+#    me=apply(x1,2,mean)
+#    se=sqrt(apply(x1,2,var))
+#    x1=x
+#    for (i in 1:k){
+#       x1[,i]=(x1[,i]-me[i])/se[i]
+#    }
+#    #
+#    V1=cov(x1[1:orig,])
+#    m1=eigen(V1)
+#    sdev=m1$values
+#    M=m1$vectors
+#    M1=M[,1:m]
+#    Dindex=x1%*%M1
+#    y1=y[1:orig]; DF=Dindex[1:orig,]
+#    mm=lm(y1~DF)
+#    # coef=matrix(mm$coefficients,(m+1),1)
+#    coef=matrix(mm$coefficients[-1],(m),1) # exclude the intercept
+#    #cat("coefficients: ","\n")
+#    #print(round(coef,4))
+#    yhat=NULL; MSE=NULL
+#    if(orig < nT){
+#       newx=cbind(rep(1,(nT-orig)),Dindex[(orig+1):nT,])
+#       yhat=mm$coefficients[1]+(t(newx)%*%coef)
+#       err=y[(orig+1):nT]-yhat
+#       MSE=mean(err^2)
+#       cat("MSE of out-of-sample forecasts: ",MSE,"\n")
+#    }
+#    
+#    SWfore <- list(coef=coef,yhat=yhat,MSE=MSE,loadings=M1,DFindex=Dindex)
+# }
+
+```
+
+```{r SWfore, echo=FALSE}
+require(MTS)
+idx_complete <- which(complete.cases(xts_data_quart) == TRUE)
+
+trim_data = xts_data_quart[idx_complete]
+results <- SWfore(y = trim_data$UMCSENT, x = trim_data[,-c(1,2)], orig = length(idx_complete)-2, m = 5)
+
+```
