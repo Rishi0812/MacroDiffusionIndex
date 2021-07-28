@@ -129,6 +129,7 @@ idx_complete <- which(complete.cases(xts_data_quart) == TRUE)
 trim_data = xts_data_quart[idx_complete]
 results <- SWfore(y = trim_data$UMCSENT, x = trim_data[,-c(1)], orig = length(idx_complete)-2, m = 5)
 # results <- SWfore(y = trim_data$UMCSENT, x = trim_data[,-1], orig = length(idx_complete)-1, m = 5)
+cbind(trim_data$UMCSENT[(length(idx_complete)-2+1):length(idx_complete)], results$yhat)
 
 ```
 
@@ -234,5 +235,10 @@ MDI_test <- cbind(x_test, y_test)
 pred_ranger <- predict(MDI_ranger, MDI_test)
 head(pred_ranger$predictions)
 
+err <- y_test - pred_ranger$predictions
+MSE <- mean(err^2)
+MSE
+
+cbind(y_test, pred_ranger$predictions)
 ```
 
