@@ -127,7 +127,112 @@ require(MTS)
 idx_complete <- which(complete.cases(xts_data_quart) == TRUE)
 
 trim_data = xts_data_quart[idx_complete]
-results <- SWfore(y = trim_data$UMCSENT, x = trim_data[,-c(1,2)], orig = length(idx_complete)-2, m = 5)
+results <- SWfore(y = trim_data$UMCSENT, x = trim_data[,-c(1)], orig = length(idx_complete)-2, m = 5)
 # results <- SWfore(y = trim_data$UMCSENT, x = trim_data[,-1], orig = length(idx_complete)-1, m = 5)
 
 ```
+
+## Using SWFore to build Diffusion Indexes, then passing results to our own forecasting function
+
+Ok, so we get `SWFore()` to work (requires more than 1 forecast) which uses `lm()` to make the forecast. Forecasting in SWFore() is optional. At the very least the function will fit a linear model to the entire dataset, where no forecast is required.
+
+Before extending the function with additional parameters for model choice, which feels like a logical next step, we could use a modified version of SWFore() to simply build the diffusion indexes, then pass the resulting series' to a new forecasting algorithm such as a random forest model. We could compare results with `lm`.
+
+The combinations of forecasting horizons and target variables can explode pretty quickly...so we will have to narrow it down to something specific. Will use a few forecast horizons and the UMCSENT target variable for starters.
+
+```{r modified_SWFore}
+"DiffIdx" <- function(x,orig,m){
+   ### Builds Stock and Watson's diffusion index prediction
+   ### x: observed regressors
+   ### orig: forecast origin
+   ### m: selected number of PCs
+   ###
+   ### Output: Forecasts and MSE of forecasts (if data available)
+   if(!is.matrix(x))x=as.matrix(x)
+   nT=dim(x)[1]
+   k=dim(x)[2]
+   if(orig > nT)orig=nT
+   if(m > k)m=k; if(m < 1)m=1
+   # standardize the predictors
+   x1=x[1:orig,]
+   me=apply(x1,2,mean)
+   se=sqrt(apply(x1,2,var))
+   x1=x
+   for (i in 1:k){
+      x1[,i]=(x1[,i]-me[i])/se[i]
+   }
+   #
+   V1=cov(x1[1:orig,])
+   m1=eigen(V1)
+   sdev=m1$values
+   M=m1$vectors
+   M1=M[,1:m]
+   Dindex=x1%*%M1
+   # y1=y[1:orig]
+   # DF=Dindex[1:orig,]
+   DF=Dindex
+   # mm=lm(y1~DF)
+   # coef=matrix(mm$coefficients,(m+1),1)
+   # coef=matrix(mm$coefficients[-1],(m),1) # exclude the intercept
+   #cat("coefficients: ","\n")
+   #print(round(coef,4))
+   yhat=NULL; MSE=NULL
+   # if(orig < nT){
+   #    newx=cbind(rep(1,(nT-orig)),Dindex[(orig+1):nT,])
+   #    yhat=mm$coefficients[1]+(t(newx)%*%coef)
+   #    err=y[(orig+1):nT]-yhat
+   #    MSE=mean(err^2)
+   #    cat("MSE of out-of-sample forecasts: ",MSE,"\n")
+   # }
+
+   DiffIdx <- DF
+}
+
+diffIdx <- DiffIdx(trim_data[,-c(1)], orig = length(idx_complete)-2, m = 5)
+head(diffIdx)
+
+```
+
+Ok, we have our Diffusion Indexes. Now lets feed these X values together with Y values into a RF model. We will use the `ranger` package for this Random Forest implementation.
+
+```{r train_Ranger}
+# Refer to https://uc-r.github.io/random_forests
+
+require(ranger)
+x_train <- diffIdx[1:(nrow(diffIdx)-3),] # train goes from 32 obs to 29, 1 lag and 2 obs for prediction
+colnames(x_train) <- c("DI_1","DI_2","DI_3","DI_4", "DI_5")
+nrow(x_train)
+y_train <- lag(trim_data$UMCSENT, 1)[1:(nrow(trim_data)-2)][-1,]
+nrow(y_train)
+# check data with lags
+cbind(trim_data$UMCSENT, lag(trim_data$UMCSENT[1:(nrow(trim_data)-2)], 1))
+
+x_test <- diffIdx[(nrow(diffIdx)-2):(nrow(diffIdx)-1),]
+colnames(x_test) <- c("DI_1","DI_2","DI_3","DI_4","DI_5")
+nrow(x_test)
+y_test <- lag(trim_data$UMCSENT, 1)[(nrow(trim_data)-1):nrow(trim_data)]
+nrow(y_test)
+
+MDI_train <- cbind(x_train, y_train)
+
+MDI_ranger <- ranger(
+    formula   = UMCSENT ~ ., 
+    data      = MDI_train, 
+    num.trees = 500,
+    mtry      = 5
+  )
+
+```
+
+We will need to think about what hyperparameter grid search we would like to do...
+
+Moving onto prediction...
+
+```{r predict_Ranger}
+MDI_test <- cbind(x_test, y_test)
+
+pred_ranger <- predict(MDI_ranger, MDI_test)
+head(pred_ranger$predictions)
+
+```
+
