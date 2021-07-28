@@ -200,21 +200,32 @@ Ok, we have our Diffusion Indexes. Now lets feed these X values together with Y 
 # Refer to https://uc-r.github.io/random_forests
 
 require(ranger)
-x_train <- diffIdx[1:(nrow(diffIdx)-3),] # train goes from 32 obs to 29, 1 lag and 2 obs for prediction
+set.seed(123)
+
+# First check raw data
+cbind(trim_data$UMCSENT, diffIdx)
+
+# Now lag
+lag_x <- lag.xts(diffIdx)
+x_train <- lag_x[2:(nrow(diffIdx)-2),] # train goes from 32 obs to 29, 1 lag and 2 obs for prediction
 colnames(x_train) <- c("DI_1","DI_2","DI_3","DI_4", "DI_5")
 nrow(x_train)
-y_train <- lag(trim_data$UMCSENT, 1)[1:(nrow(trim_data)-2)][-1,]
+y_train <- trim_data$UMCSENT[2:(nrow(trim_data)-2)]
 nrow(y_train)
 # check data with lags
-cbind(trim_data$UMCSENT, lag(trim_data$UMCSENT[1:(nrow(trim_data)-2)], 1))
+cbind(trim_data$UMCSENT, y_train)
+# Check lagged x and y values
+MDI_train <- cbind(y_train, x_train)
+MDI_train
 
-x_test <- diffIdx[(nrow(diffIdx)-2):(nrow(diffIdx)-1),]
+x_test <- lag_x[(nrow(diffIdx)-1):nrow(diffIdx),]
 colnames(x_test) <- c("DI_1","DI_2","DI_3","DI_4","DI_5")
 nrow(x_test)
-y_test <- lag(trim_data$UMCSENT, 1)[(nrow(trim_data)-1):nrow(trim_data)]
+y_test <- trim_data$UMCSENT[(nrow(trim_data)-1):nrow(trim_data)]
 nrow(y_test)
 
-MDI_train <- cbind(x_train, y_train)
+MDI_test <- cbind(x_test, y_test)
+MDI_test
 
 MDI_ranger <- ranger(
     formula   = UMCSENT ~ ., 
@@ -230,6 +241,43 @@ We will need to think about what hyperparameter grid search we would like to do.
 Moving onto prediction...
 
 ```{r predict_Ranger}
+pred_ranger <- predict(MDI_ranger, MDI_test)
+head(pred_ranger$predictions)
+
+err <- y_test - pred_ranger$predictions
+MSE <- mean(err^2)
+MSE
+
+cbind(y_test, pred_ranger$predictions)
+```
+
+Now, RF model does worse with an MSE of 116 versus 41 for lm in SWFore. However, i suspect look-ahead bias in SWFore. If we dont use lags in our RF model...what are the results?
+
+```{r look-ahead-ranger}
+x_train <- diffIdx[1:(nrow(diffIdx)-3),] # train goes from 32 obs to 29, 1 lag and 2 obs for prediction
+colnames(x_train) <- c("DI_1","DI_2","DI_3","DI_4", "DI_5")
+nrow(x_train)
+y_train <- trim_data$UMCSENT[1:(nrow(trim_data)-3)]
+nrow(y_train)
+# check data with lags
+cbind(trim_data$UMCSENT, lag(trim_data$UMCSENT[1:(nrow(trim_data)-2)], 1))
+
+x_test <- diffIdx[(nrow(diffIdx)-2):(nrow(diffIdx)-1),]
+colnames(x_test) <- c("DI_1","DI_2","DI_3","DI_4","DI_5")
+nrow(x_test)
+y_test <- trim_data$UMCSENT[(nrow(trim_data)-2):(nrow(trim_data)-1)]
+nrow(y_test)
+
+MDI_train <- cbind(x_train, y_train)
+
+set.seed(123)
+MDI_ranger <- ranger(
+    formula   = UMCSENT ~ ., 
+    data      = MDI_train, 
+    num.trees = 500,
+    mtry      = 5
+  )
+
 MDI_test <- cbind(x_test, y_test)
 
 pred_ranger <- predict(MDI_ranger, MDI_test)
@@ -240,5 +288,7 @@ MSE <- mean(err^2)
 MSE
 
 cbind(y_test, pred_ranger$predictions)
+
 ```
+
 
