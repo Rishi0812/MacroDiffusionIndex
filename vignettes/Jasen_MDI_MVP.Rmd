@@ -11,7 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Introduction
 
-This is just a document store of Jasen's progress using FRED data and the SWfore function to make forecasts of economic data.
+This is just a document store of Jasen's progress using FRED data to make forecasts of economic data. We use lm() inside SWfore to make forecasts using lagged and un-lagged values of the x-values, as well as using a Random Forest model from the ranger package.
 
 ## Data
 
@@ -221,18 +221,18 @@ set.seed(123)
 lag_x <- lag.xts(diffIdx)
 x_train <- lag_x[2:(nrow(diffIdx)-2),] # train goes from 32 obs to 29, 1 lag and 2 obs for prediction
 colnames(x_train) <- c("DI_1","DI_2","DI_3","DI_4", "DI_5")
-nrow(x_train)
+# nrow(x_train)
 y_train <- trim_data$UMCSENT[2:(nrow(trim_data)-2)]
-nrow(y_train)
+# nrow(y_train)
 
 # Check lagged x and y values
 MDI_train <- cbind(y_train, x_train)
 
 x_test <- lag_x[(nrow(diffIdx)-1):nrow(diffIdx),]
 colnames(x_test) <- c("DI_1","DI_2","DI_3","DI_4","DI_5")
-nrow(x_test)
+# nrow(x_test)
 y_test <- trim_data$UMCSENT[(nrow(trim_data)-1):nrow(trim_data)]
-nrow(y_test)
+# nrow(y_test)
 
 MDI_test <- cbind(x_test, y_test)
 MDI_test
@@ -276,15 +276,15 @@ Now, RF model does better with an MSE of 84 versus 343 for lm in SWFore when usi
 ```{r look-ahead-ranger, echo=FALSE}
 x_train <- diffIdx[1:(nrow(diffIdx)-3),] # train goes from 32 obs to 29, 1 lag and 2 obs for prediction
 colnames(x_train) <- c("DI_1","DI_2","DI_3","DI_4", "DI_5")
-nrow(x_train)
+# nrow(x_train)
 y_train <- trim_data$UMCSENT[1:(nrow(trim_data)-3)]
-nrow(y_train)
+# nrow(y_train)
 
 x_test <- diffIdx[(nrow(diffIdx)-2):(nrow(diffIdx)-1),]
 colnames(x_test) <- c("DI_1","DI_2","DI_3","DI_4","DI_5")
-nrow(x_test)
+# nrow(x_test)
 y_test <- trim_data$UMCSENT[(nrow(trim_data)-2):(nrow(trim_data)-1)]
-nrow(y_test)
+# nrow(y_test)
 
 MDI_train <- cbind(x_train, y_train)
 
