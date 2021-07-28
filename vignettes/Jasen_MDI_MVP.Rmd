@@ -67,6 +67,8 @@ xts_data_quart <- do.call(merge.xts, data_quart)
 
 ```
 
+## SWfore()
+
 Now we should be able to make forecasts with MTS and SWfore. However, we will need to identify the most complete data first, as eigen() dont take no NAs.
 
 Looks like we have NAs until 2013 Q2, and the last 2 observations are also not complete cases...we will need to remove those. We can use `complete.cases` to build an index of complete rows.
@@ -122,7 +124,7 @@ It would appear the SWfore requires forecasts of at least 2 single one-step's ah
 
 ```
 
-```{r SWfore, echo=FALSE}
+```{r SWfore, echo=FALSE, message=FALSE}
 require(MTS)
 idx_complete <- which(complete.cases(xts_data_quart) == TRUE)
 
@@ -133,15 +135,28 @@ cbind(trim_data$UMCSENT[(length(idx_complete)-2+1):length(idx_complete)], result
 
 ```
 
-## Using SWFore to build Diffusion Indexes, then passing results to our own forecasting function
+Ok, so we get `SWFore()` to work (requires more than 1 forecast) which uses `lm()` to make the forecast. Forecasting in SWFore() is optional. At the very least the function will fit a linear model to the entire dataset, where no forecast is required. We get an MSE of 41 when predicting 2 quarters (ie. 2 datapoints) ahead.
 
-Ok, so we get `SWFore()` to work (requires more than 1 forecast) which uses `lm()` to make the forecast. Forecasting in SWFore() is optional. At the very least the function will fit a linear model to the entire dataset, where no forecast is required.
+_Its possible we have introduced look-ahead bias here...so we should test lagged x values_
+
+## SWfore without look-ahead bias
+
+```{r SWfore_wo_look-ahead, echo=FALSE}
+results <- SWfore(y = trim_data$UMCSENT[-1], x = lag(trim_data[,-c(1)], 1)[-1], orig = length(trim_data$UMCSENT)-3, m = 5)
+cbind(trim_data$UMCSENT[(length(trim_data$UMCSENT)-2+1):length(trim_data$UMCSENT)], results$yhat)
+```
+
+Ok, the MSE is fugly. How does an RF model compare?
+
+## Using SWFore to build Diffusion Indexes, then passing results to our own forecasting function
 
 Before extending the function with additional parameters for model choice, which feels like a logical next step, we could use a modified version of SWFore() to simply build the diffusion indexes, then pass the resulting series' to a new forecasting algorithm such as a random forest model. We could compare results with `lm`.
 
 The combinations of forecasting horizons and target variables can explode pretty quickly...so we will have to narrow it down to something specific. Will use a few forecast horizons and the UMCSENT target variable for starters.
 
-```{r modified_SWFore}
+Below is a snippet of the Diffusion Indexes.
+
+```{r modified_SWFore, echo=FALSE}
 "DiffIdx" <- function(x,orig,m){
    ### Builds Stock and Watson's diffusion index prediction
    ### x: observed regressors
@@ -196,27 +211,22 @@ head(diffIdx)
 
 Ok, we have our Diffusion Indexes. Now lets feed these X values together with Y values into a RF model. We will use the `ranger` package for this Random Forest implementation.
 
-```{r train_Ranger}
+```{r train_Ranger, echo=FALSE, message=FALSE}
 # Refer to https://uc-r.github.io/random_forests
 
 require(ranger)
 set.seed(123)
 
-# First check raw data
-cbind(trim_data$UMCSENT, diffIdx)
-
-# Now lag
+# Lag x values, build x_train and y_train
 lag_x <- lag.xts(diffIdx)
 x_train <- lag_x[2:(nrow(diffIdx)-2),] # train goes from 32 obs to 29, 1 lag and 2 obs for prediction
 colnames(x_train) <- c("DI_1","DI_2","DI_3","DI_4", "DI_5")
 nrow(x_train)
 y_train <- trim_data$UMCSENT[2:(nrow(trim_data)-2)]
 nrow(y_train)
-# check data with lags
-cbind(trim_data$UMCSENT, y_train)
+
 # Check lagged x and y values
 MDI_train <- cbind(y_train, x_train)
-MDI_train
 
 x_test <- lag_x[(nrow(diffIdx)-1):nrow(diffIdx),]
 colnames(x_test) <- c("DI_1","DI_2","DI_3","DI_4","DI_5")
@@ -236,11 +246,19 @@ MDI_ranger <- ranger(
 
 ```
 
+Before moving onto predicting out-of-sample observations, lets check the head and tail of the lagged and original un-lagged datasets...to make sure we are all in alignment...
+
+```{r check_data, echo=TRUE}
+# Compare lagged and un-lagged datasets
+head(cbind(MDI_train, cbind(trim_data$UMCSENT, diffIdx)))
+tail(cbind(MDI_train, cbind(trim_data$UMCSENT, diffIdx)))
+```
+
 We will need to think about what hyperparameter grid search we would like to do...
 
 Moving onto prediction...
 
-```{r predict_Ranger}
+```{r predict_Ranger, echo=FALSE}
 pred_ranger <- predict(MDI_ranger, MDI_test)
 head(pred_ranger$predictions)
 
@@ -251,16 +269,16 @@ MSE
 cbind(y_test, pred_ranger$predictions)
 ```
 
-Now, RF model does worse with an MSE of 116 versus 41 for lm in SWFore. However, i suspect look-ahead bias in SWFore. If we dont use lags in our RF model...what are the results?
+Now, RF model does better with an MSE of 84 versus 343 for lm in SWFore when using lagged data removing any potential look-ahead bias. Ignoring look-ahead bias, we know SWfore and lm() achieve an MSE of 41. How does RF do with look-ahead bias, compared with lm()?
 
-```{r look-ahead-ranger}
+## Look-ahead Ranger
+
+```{r look-ahead-ranger, echo=FALSE}
 x_train <- diffIdx[1:(nrow(diffIdx)-3),] # train goes from 32 obs to 29, 1 lag and 2 obs for prediction
 colnames(x_train) <- c("DI_1","DI_2","DI_3","DI_4", "DI_5")
 nrow(x_train)
 y_train <- trim_data$UMCSENT[1:(nrow(trim_data)-3)]
 nrow(y_train)
-# check data with lags
-cbind(trim_data$UMCSENT, lag(trim_data$UMCSENT[1:(nrow(trim_data)-2)], 1))
 
 x_test <- diffIdx[(nrow(diffIdx)-2):(nrow(diffIdx)-1),]
 colnames(x_test) <- c("DI_1","DI_2","DI_3","DI_4","DI_5")
@@ -291,4 +309,12 @@ cbind(y_test, pred_ranger$predictions)
 
 ```
 
+Well, RF does worse when left un-adjusted for look-ahead bias whereas lm() does better...but still worse than RF in both cases.
 
+## TODO
+
+1. Discuss target variables of interest
+2. Hyperparameter tuning
+3. Forecast horizons
+4. What frequency of data we would like to work with...we have converted many monthly and daily series' to quarterly, losing some potential signal by doing so
+5. Discuss the lagging methodology...is it appropriate?
