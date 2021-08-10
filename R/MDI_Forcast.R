@@ -28,20 +28,24 @@ rm(symbols)
 
 ## Get CSV Data
 
-# csvfiles <- list.files(path = "~/Documents/Rishi/GSoC_2021/Bloomberg-Dataset/GSOC_macro_Bloomberg_data")
-# for(i in 1:length(csvfiles)) {
-#   assign(paste0('data', i),
-#          read.csv2(paste0("~/Documents/Rishi/GSoC_2021/Bloomberg-Dataset/GSOC_macro_Bloomberg_data/",
-#                           csvfiles[i])))
-# }
+csvfiles <- list.files(path = "~/Documents/Rishi/GSoC_2021/Bloomberg-Dataset/GSOC_macro_Bloomberg_data")
+for(i in 1:length(csvfiles)) {
+  temp = read.csv(paste0("~/Documents/Rishi/GSoC_2021/Bloomberg-Dataset/GSOC_macro_Bloomberg_data/",
+                      csvfiles[i]))
+  assign(x = paste0('data', i), value = temp, envir = csv_data)
+}
 
+
+data2 <- eapply(env = csv_data, FUN = merge.zoo)
+
+data_fin0 <- lapply(data2, strftime(strptime(data2$Date,"%m/%d/%Y"),"%Y-%m-%d"))
 # dat <- read.csv("~/Documents/Rishi/GSoC_2021/Bloomberg-Dataset/GSOC_macro_Bloomberg_data/GSOC_20dayPutCall.csv")
 #
 # dat2 <- dat[-c(1:5), ]
 # colnames(dat2)[1] <- "Date"
 # colnames(dat2)[2] <- "PX_LAST"
 #
-# dat2$Date<-strftime(strptime(dat2$Date,"%m/%d/%Y"),"%Y-%m-%d")
+# dat2$Date<- strftime(strptime(dat2$Date,"%m/%d/%Y"),"%Y-%m-%d")
 # PutCall <- xts(dat2[,2], as.Date(dat2[,1], format = "%Y-%m-%d", env = econ_data))
 #
 # rm(dat,dat2)
@@ -77,7 +81,7 @@ rm(xts_data_quart)
 #Plot, Visualize and get some initial Insights
 library(ggplot2)
 ggplot(trim_data, aes(x = Index, y = trim_data$UMCSENT)) + geom_line()
-
+autoplot(facet)
 
 ## SWfore()
 require(MTS)
