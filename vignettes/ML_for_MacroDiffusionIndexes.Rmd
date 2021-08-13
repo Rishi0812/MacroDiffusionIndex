@@ -51,22 +51,228 @@ First we'll create a new environment and a vector object containing the specific
 
 ```{r}
 #Create new environment
-econ_data <- new.env()
+fundamental_data <- new.env()
+behavioral_data <- new.env()
+catalyst_data <- new.env()
 
-symbols <- c('OECDLOLITOAASTSAM', 'ICSA', 'INDPRO', 'T10Y2Y', 'BAA10Y', # Economic Trend
+### Add symbols
+symbols1 <- c('AMTMNO', 'AMTMTI', 'OECDLOLITOAASTSAM', 'ICSA', 'INDPRO', 'T10Y2Y', 'BAA10Y', 'MKTGDPHKA646NWDB', 'MKTGDPSGA646NWDB', 'RGDPNABRA666NRUG', # Economic Trend
              'NFCI', # Liquidity
-             'M2V', 'TOTCI', 'M0263AUSM500NNBR', 'M0264AUSM500NNBR', 'BOGZ1FA895050005Q', # Velocity
-             'UMCSENT', 'CSUSHPISA', 'SPCS20RSA', # Confirmation Bias: Surveys
-             'VIXCLS', 'VXVCLS', 'EVZCLS', 'THREEFYTP10', # Representative Bias
-             'EMVOVERALLEMV', # Cognitive Dissonance
-             'CFNAIMA3', 'STLENI', 'STLFSI2', # Economic Surprise
-             'WLEMUINDXD' # Geopolitics
-)
+             'M2V', 'TOTCI', 'BOGZ1FA895050005Q' # Velocity
+             )
+
+symbols2 <- c('UMCSENT', 'CSUSHPISA', 'SPCS20RSA', # Confirmation Bias: Surveys
+              'VIXCLS', 'VXVCLS', 'EVZCLS', 'THREEFYTP10', # Representative Bias
+              'EMVOVERALLEMV', # Cognitive Dissonance
+              'BOGZ1FA483064105Q' # Overconfidence
+              )
+
+symbols3 <- c('CFNAIMA3', 'STLFSI2', # Economic Surprise
+              'WLEMUINDXD' # Geopolitics
+              )
 ```
 
 Now we will be using the 'getSymbols()' function of the 'quantmod' package in order to import the required dataset from fred.
 The downloaded data will be stored in the form of xts timeseries object in the specified environment.
 
 ```{r}
-getSymbols(Symbols = symbols, src='FRED', env = econ_data)
+### Get data
+getSymbols(Symbols = symbols1,
+           src='FRED',
+           env = fundamental_data)
+
+getSymbols(Symbols = symbols2,
+           src='FRED',
+           env = behavioral_data)
+
+getSymbols(Symbols = symbols3,
+           src='FRED',
+           env = catalyst_data)
+
+# Clean-up
+rm(symbols1)
+rm(symbols2)
+rm(symbols3)
 ```
+
+```{r eval=FALSE}
+## Get CSV Data
+
+fundamental_csv <- new.env()
+behavioral_csv <- new.env()
+catalyst_csv <- new.env()
+
+#fundamental
+csvfiles <- list.files(path = "~/Documents/UserPath")
+for(i in 1:length(csvfiles)) {
+  temp = read.csv(paste0("~/Documents/UserPath",
+                      csvfiles[i]))
+  assign(x = paste0('data', i), value = temp, envir = fundamental_csv)
+}
+
+#behavioral
+csvfiles <- list.files(path = "~/Documents/UserPath")
+for(i in 1:length(csvfiles)) {
+  temp = read.csv(paste0("~/Documents/UserPath",
+                         csvfiles[i]))
+  #temp$Date <- strftime(strptime(temp$Date,"%m-%d-%Y"),"%Y-%m-%d")
+  temp$Date = as.Date(temp$Date, format ="%m-%d-%Y")
+  temp <- xts(temp[,2], order.by = as.Date(temp[,1], format = "%Y-%m-%d"))
+  assign(x = paste0('data', i), value = temp, envir = behavioral_csv)
+}
+
+#catalyst
+csvfiles <- list.files(path = "~/Documents/UserPath")
+for(i in 1:length(csvfiles)) {
+  temp = read.csv(paste0("~/Documents/UserPath",
+                         csvfiles[i]))
+  assign(x = paste0('data', i), value = temp, envir = catalyst_csv)
+}
+```
+
+```{r}
+### Merge data - this will store it in a list
+data_fundamental <- eapply(env = fundamental_data, FUN = merge.xts)
+data_behavioral  <- eapply(env = behavioral_data, FUN = merge.xts)
+data_catalyst    <- eapply(env = catalyst_data, FUN = merge.xts)
+```
+
+```{r}
+## Check Periodicities
+periodicities <- as.data.frame(do.call(rbind, lapply(data_fundamental, periodicity)))
+#View(periodicities)
+ls_periodicities <- lapply(data_fundamental, periodicity)
+periodicities$start <- as.Date(sapply(ls_periodicities, "[[", 3))
+periodicities$end <- as.Date(sapply(ls_periodicities, "[[", 4))
+periodicities # view periodicities
+rm(ls_periodicities)
+```
+
+
+```{r}
+data_fin_1 <- lapply(data_fundamental, to.quarterly, OHLC=FALSE)
+data_fin_2 <- lapply(data_behavioral, to.quarterly, OHLC=FALSE)
+data_fin_3 <- lapply(data_catalyst, to.quarterly, OHLC=FALSE)
+
+#clean-up
+rm(data_fundamental)
+rm(data_behavioral)
+rm(data_catalyst)
+```
+
+
+```{r}
+#merge data
+xts_data_quart_1 <- do.call(merge.xts, data_fin_1)
+xts_data_quart_2 <- do.call(merge.xts, data_fin_2)
+xts_data_quart_3 <- do.call(merge.xts, data_fin_3)
+
+#clean-up
+rm(data_fin_1)
+rm(data_fin_2)
+rm(data_fin_3)
+```
+
+```{r}
+#Include complete data
+idx_complete_1 <- which(complete.cases(xts_data_quart_1) == TRUE)
+idx_complete_2 <- which(complete.cases(xts_data_quart_2) == TRUE)
+idx_complete_3 <- which(complete.cases(xts_data_quart_3) == TRUE)
+
+#Final trimed Datasets
+trim_data_fundamental = xts_data_quart_1[idx_complete_1]
+trim_data_behavioral = xts_data_quart_2[idx_complete_2]
+trim_data_catalyst = xts_data_quart_3[idx_complete_3]
+
+#clean-up
+rm(xts_data_quart_1)
+rm(xts_data_quart_2)
+rm(xts_data_quart_3)
+```
+
+```{r}
+## Using SWFore to build Diffusion Indexes - Function
+"DiffIdx" <- function(x,orig,m){
+  ### Builds Stock and Watson's diffusion index prediction
+  ### x: observed regressors
+  ### orig: forecast origin
+  ### m: selected number of PCs
+  ###
+  ### Output: Forecasts and MSE of forecasts (if data available)
+  if(!is.matrix(x))x=as.matrix(x)
+  nT=dim(x)[1]
+  k=dim(x)[2]
+  if(orig > nT)orig=nT
+  if(m > k)m=k; if(m < 1)m=1
+  # standardize the predictors
+  x1=x[1:orig,]
+  me=apply(x1,2,mean)
+  se=sqrt(apply(x1,2,var))
+  x1=x
+  for (i in 1:k){
+    x1[,i]=(x1[,i]-me[i])/se[i]
+  }
+  #
+  V1=cov(x1[1:orig,])
+  m1=eigen(V1)
+  sdev=m1$values
+  M=m1$vectors
+  M1=M[,1:m]
+  Dindex=x1%*%M1
+  # y1=y[1:orig]
+  # DF=Dindex[1:orig,]
+  DF=Dindex
+  # mm=lm(y1~DF)
+  # coef=matrix(mm$coefficients,(m+1),1)
+  # coef=matrix(mm$coefficients[-1],(m),1) # exclude the intercept
+  #cat("coefficients: ","\n")
+  #print(round(coef,4))
+  yhat=NULL; MSE=NULL
+  # if(orig < nT){
+  #    newx=cbind(rep(1,(nT-orig)),Dindex[(orig+1):nT,])
+  #    yhat=mm$coefficients[1]+(t(newx)%*%coef)
+  #    err=y[(orig+1):nT]-yhat
+  #    MSE=mean(err^2)
+  #    cat("MSE of out-of-sample forecasts: ",MSE,"\n")
+  # }
+
+  DiffIdx <- DF
+}
+```
+
+```{r}
+#Constructing Diffusion Index
+
+#fundamental
+fundamental_DI <- DiffIdx(trim_data_fundamental, orig = length(idx_complete_1)-2, m = 1)
+head(fundamental_DI)
+
+#behavioral
+behavioral_DI <- DiffIdx(trim_data_behavioral, orig = length(idx_complete_2)-2, m = 1)
+head(behavioral_DI)
+
+#catalyst
+catalyst_DI <- DiffIdx(trim_data_catalyst, orig = length(idx_complete_3)-2, m = 1)
+head(catalyst_DI)
+```
+
+```{r}
+#Scaling & Standardizing the observation
+library(roll)
+
+x <- fundamental_DI
+
+roll_scale(x, width = 5, na_restore = FALSE)
+```
+
+```{r}
+## Getting S&P 500 Data
+SP_500 <- getSymbols (Symbols = 'SP500', src= 'FRED', auto.assign = FALSE)
+SP_500_quart <- lapply (SP_500, to.quarterly, OHLC=FALSE)
+
+# S&P Calculation
+x2 <- SP_500_quart$SP500
+
+roll_scale(x2, width = 5, na_restore = FALSE)
+```
+
