@@ -58,6 +58,9 @@ csvfiles <- list.files(path = "~/Documents/Rishi/GSoC_2021/Bloomberg-Dataset/GSO
 for(i in 1:length(csvfiles)) {
   temp = read.csv(paste0("~/Documents/Rishi/GSoC_2021/Bloomberg-Dataset/GSOC_macro_Bloomberg_data/",
                          csvfiles[i]))
+  #temp$Date <- strftime(strptime(temp$Date,"%m-%d-%Y"),"%Y-%m-%d")
+  temp$Date = as.Date(temp$Date, format ="%m-%d-%Y")
+  temp <- xts(temp[,2], order.by = as.Date(temp[,1], format = "%Y-%m-%d"))
   assign(x = paste0('data', i), value = temp, envir = behavioral_csv)
 }
 
@@ -70,17 +73,24 @@ for(i in 1:length(csvfiles)) {
 }
 
 #Data pre-processing
-data2 <- eapply(env = csv_data, FUN = merge.zoo)
+data2 <- eapply(env = fundamental_csv, FUN = merge.zoo)
+
+lapply(data2, function(x) {
+  x$Date <- as.Date(x[,1], format="%m-%d-%Y")
+  return(x)
+})
+
 data_2 <- do.call(merge.zoo, data2)
 
-data_fin0 <- lapply(data2, strftime(strptime(data2$Date,"%m/%d/%Y"),"%Y-%m-%d"))
+data_fin0 <- lapply(data2, to.quarterly, OHLC=FALSE)
+data_fin0 <- lapply(data2, as.Date(data2[,1], format="%Y-%m-%d"))
 # dat <- read.csv("~/Documents/Rishi/GSoC_2021/Bloomberg-Dataset/GSOC_macro_Bloomberg_data/GSOC_20dayPutCall.csv")
 #
 # dat2 <- dat[-c(1:5), ]
 # colnames(dat2)[1] <- "Date"
 # colnames(dat2)[2] <- "PX_LAST"
 #
-# dat2$Date<- strftime(strptime(dat2$Date,"%m/%d/%Y"),"%Y-%m-%d")
+# dat2$Date<- strftime(strptime(dat2$Date,"%m-%d-%Y"),"%Y-%m-%d")
 # PutCall <- xts(dat2[,2], as.Date(dat2[,1], format = "%Y-%m-%d", env = econ_data))
 #
 # rm(dat,dat2)
@@ -89,7 +99,7 @@ data2$Date<- strftime(strptime(data2$Date,"%m/%d/%Y"),"%Y-%m-%d")
 PutCall <- xts(data2[,2], as.Date(dat2[,1], format = "%Y-%m-%d", env = econ_data))
 
 #as.Date(data2$Date, format="%m-%d-%Y")
-#function(x) as.Date(x[,1], format="%m-%d-%Y")
+#function(x) as.Date(x[,1], format="%Y-%m-%d")
 
 ### Merge data - this will store it in a list
 data_fundamental <- eapply(env = fundamental_data, FUN = merge.xts)
@@ -216,11 +226,22 @@ head(behavioral_DI)
 catalyst_DI <- DiffIdx(trim_data_catalyst, orig = length(idx_complete_3)-2, m = 1)
 head(catalyst_DI)
 
+#Scaling & Standardizing the observation
+library(roll)
+
+x <- fundamental_DI
+
+roll_scale(x, width = 5, na_restore = FALSE)
+
 
 ## Getting S&P 500 Data
 SP_500 <- getSymbols (Symbols = 'SP500', src= 'FRED', auto.assign = FALSE)
-SP_500_quart <- to.quarterly(SP_500, )
 SP_500_quart <- lapply (SP_500, to.quarterly, OHLC=FALSE)
+
+# S&P Calculation
+x2 <- SP_500_quart$SP500
+
+roll_scale(x2, width = 5, na_restore = FALSE)
 
 ## Using Random Forest
 
