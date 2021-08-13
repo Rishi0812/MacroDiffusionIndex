@@ -297,22 +297,48 @@ catalyst_DI <- DiffIdx(xts_data_cat, orig = nrow(xts_data_cat), m = 1)
 head(catalyst_DI)
 ```
 
+```{r plot_DI}
+plot_data <- merge(fundamental_DI, behavioral_DI, catalyst_DI)
+plot(plot_data, main = "Diffusion Index Plot")
+addLegend("topright", on=1, 
+          legend.names = c("Fundamental DI", "Behavioral DI", "Catalyst DI"),
+          lty=c(1, 1), lwd=c(2, 1))
+
+# # Ok, lets add S&P500
+# ## Getting S&P 500 Data
+# SP_500 <- getSymbols (Symbols = 'SPY', src= 'yahoo', auto.assign = FALSE)
+# SP_500_period <- to.monthly(SP_500)
+# # We get data starting Jan 2007 for the S&P 500, so we remove everything before Dec 2007, the start of the Diffusion Indexes
+# SP_500_period <- SP_500_period["2007-12/"]
+# 
+# new_plot_data <- merge(plot_data, Ad(SP_500_period))
+# plot(new_plot_data, main = "Diffusion Indexes overlayed with S&P500 - this doe not make sense to do actually")
+```
+
 ```{r}
 #Scaling & Standardizing the observation
 library(roll)
+x <- plot_data # we can use plot_data...it is complete
 
-x <- fundamental_DI
-
-roll_scale(x, width = 5, na_restore = FALSE)
+scaled_DI <- roll_scale(x, width = 5, na_restore = FALSE)
 ```
+
+```{r plot_scaled_DI}
+plot(scaled_DI, main = "Diffusion Index Plot - scaled")
+addLegend("topright", on=1, 
+          legend.names = c("Fundamental DI", "Behavioral DI", "Catalyst DI"),
+          lty=c(1, 1), lwd=c(2, 1))
+```
+
+Ok, its an ugly plot and i now need to think about this...
 
 ```{r}
 ## Getting S&P 500 Data
 SP_500 <- getSymbols (Symbols = 'SP500', src= 'FRED', auto.assign = FALSE)
-SP_500_quart <- lapply (SP_500, to.quarterly, OHLC=FALSE)
+SP_500_period <- lapply (SP_500, to.monthly, OHLC=FALSE)
 
 # S&P Calculation
-x2 <- SP_500_quart$SP500
+x2 <- SP_500_period$SP500
 
 roll_scale(x2, width = 5, na_restore = FALSE)
 ```
