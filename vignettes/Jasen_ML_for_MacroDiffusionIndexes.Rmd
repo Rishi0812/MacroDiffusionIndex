@@ -315,6 +315,8 @@ addLegend("topright", on=1,
 # plot(new_plot_data, main = "Diffusion Indexes overlayed with S&P500 - this doe not make sense to do actually")
 ```
 
+Next we scale the Diffusion Indexes...
+
 ```{r}
 #Scaling & Standardizing the observation
 library(roll)
@@ -322,6 +324,8 @@ x <- plot_data # we can use plot_data...it is complete
 
 scaled_DI <- roll_scale(x, width = 5, na_restore = FALSE)
 ```
+
+Plot the scaled Diffusion Indexes...
 
 ```{r plot_scaled_DI}
 plot(scaled_DI, main = "Diffusion Index Plot - scaled")
@@ -332,13 +336,23 @@ addLegend("topright", on=1,
 
 Ok, its an ugly plot and i now need to think about this...
 
-```{r}
-## Getting S&P 500 Data
-SP_500 <- getSymbols (Symbols = 'SP500', src= 'FRED', auto.assign = FALSE)
-SP_500_period <- lapply (SP_500, to.monthly, OHLC=FALSE)
+Ok, after some thought...there is really no constraint on the number of predictors we can pass the random forest model...so we should scale and lag all the things and pass them in...
 
-# S&P Calculation
-x2 <- SP_500_period$SP500
+```{r merge_input_series_and_lag}
+x <- merge(plot_data, scaled_DI)
+diff.lookbacks <- 1:12
+x_lagged <- do.call(cbind, lapply(diff.lookbacks, function(n) lag(x, k = n)))
+head(x_lagged, 12) # Use up to 12 lags...considering this is monthly data, 12m feels adequate
+```
+
+This is a TODO...get Y.
+
+```{r get_Y}
+SP_500 <- getSymbols (Symbols = 'SPY', src= 'yahoo', auto.assign = FALSE)
+SP_500_period <- to.monthly(SP_500)
+# We get data starting Jan 2007 for the S&P 500, so we remove everything before Dec 2007, the start of the Diffusion Indexes
+SP_500_period <- SP_500_period["2007-12/"]
+y <- SP_500_period
 
 roll_scale(x2, width = 5, na_restore = FALSE)
 ```
