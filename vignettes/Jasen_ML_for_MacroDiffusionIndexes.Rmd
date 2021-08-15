@@ -345,15 +345,47 @@ x_lagged <- do.call(cbind, lapply(diff.lookbacks, function(n) lag(x, k = n)))
 head(x_lagged, 12) # Use up to 12 lags...considering this is monthly data, 12m feels adequate
 ```
 
-This is a TODO...get Y.
+Now get Y...
 
-```{r get_Y}
+```{r get_SP500}
 SP_500 <- getSymbols (Symbols = 'SPY', src= 'yahoo', auto.assign = FALSE)
 SP_500_period <- to.monthly(SP_500)
 # We get data starting Jan 2007 for the S&P 500, so we remove everything before Dec 2007, the start of the Diffusion Indexes
 SP_500_period <- SP_500_period["2007-12/"]
-y <- SP_500_period
-
-roll_scale(x2, width = 5, na_restore = FALSE)
 ```
 
+Time to set up framework with caret. Some useful references:
+
+1. Tuning random forests on time series data - https://www.r-bloggers.com/2019/11/tuning-random-forest-on-time-series-data/
+2. Prequel to above post - https://www.statworx.com/at/blog/time-series-forecasting-with-random-forest/
+3. Rob Hyndman the great on time series cross validation - https://robjhyndman.com/hyndsight/tscvexample/
+4. Time series CV in R using caret's "timeslice" method - https://rpubs.com/crossxwill/time-series-cv
+
+```{r caret_ranger}
+library(doParallel)
+library(caret)
+
+# get SP500 returns
+library(PerformanceAnalytics)
+ret_SP500 <- Return.calculate(Ad(SP_500_period))
+one_hot_ret_SP500 <- ifelse(ret_SP500 > 0, 1, 0)
+newdata <- cbind(x_lagged, one_hot_ret_SP500)[-(1:16),]
+
+myTimeControl <- trainControl(method = "timeslice",
+                              initialWindow = 36,
+                              horizon = 12,
+                              fixedWindow = FALSE,
+                              allowParallel = TRUE,
+                              verboseIter = TRUE)
+                              # seeds = seeds)
+
+newdata <- cbind(x_lagged, one_hot_ret_SP500)
+tuneLength.num <- 5
+mod.ranger <- train(SP_500.Adjusted ~ .,
+                    data = newdata,
+                    method = "ranger",
+                    trControl = myTimeControl,
+                    tuneLength=tuneLength.num)
+plot(mod.ranger)
+
+```
