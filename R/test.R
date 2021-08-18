@@ -330,5 +330,23 @@ MSE <- mean(err^2)
 MSE
 
 cbind(y_test, pred_ranger$predictions)
-
+# # ## Convert into quaterly
+# # data_fin_1 <- lapply(data_fundamental, to.quarterly, OHLC=FALSE)
+# # data_fin_2 <- lapply(data_behavioral, to.quarterly, OHLC=FALSE)
+# # data_fin_3 <- lapply(data_catalyst, to.quarterly, OHLC=FALSE)
+#
+# # #merge data
+# # xts_data_quart_1 <- do.call(merge.xts, data_fin_1)
+# # xts_data_quart_2 <- do.call(merge.xts, data_fin_2)
+# # xts_data_quart_3 <- do.call(merge.xts, data_fin_3)
+#
+# #Include complete data
+# idx_complete_1 <- which(complete.cases(xts_data_quart_1) == TRUE)
+# idx_complete_2 <- which(complete.cases(xts_data_quart_2) == TRUE)
+# idx_complete_3 <- which(complete.cases(xts_data_quart_3) == TRUE)
+#
+# #Final trimed Datasets
+# trim_data_fundamental = xts_data_quart_1[idx_complete_1]
+# trim_data_behavioral = xts_data_quart_2[idx_complete_2]
+# trim_data_catalyst = xts_data_quart_3[idx_complete_3]
 
