@@ -3,8 +3,8 @@ library(quantmod)
 
 #Create new environment
 fundamental_data <- new.env()
-behavioral_data <- new.env()
-catalyst_data <- new.env()
+behavioral_data  <- new.env()
+catalyst_data    <- new.env()
 
 ### Add symbols
 symbols1 <- c('AMTMNO', 'AMTMTI', 'OECDLOLITOAASTSAM', 'ICSA', 'INDPRO', 'T10Y2Y', 'BAA10Y', 'MKTGDPHKA646NWDB', 'MKTGDPSGA646NWDB', 'RGDPNABRA666NRUG', # Economic Trend
@@ -41,84 +41,74 @@ rm(symbols3)
 
 ## Get CSV Data
 
-fundamental_csv <- new.env()
-behavioral_csv <- new.env()
-catalyst_csv <- new.env()
-
 #fundamental
-csvfiles <- list.files(path = "~/Documents/Rishi/GSoC_2021/Bloomberg-Dataset/GSOC_macro_Bloomberg_data")
+csvfiles <- list.files(path = "~/Documents/Rishi/GSoC_2021/Bloomberg-Dataset/GSOC_macro_Bloomberg_data/Fundamental")
 for(i in 1:length(csvfiles)) {
-  temp = read.csv(paste0("~/Documents/Rishi/GSoC_2021/Bloomberg-Dataset/GSOC_macro_Bloomberg_data/",
-                      csvfiles[i]))
-  assign(x = paste0('data', i), value = temp, envir = fundamental_csv)
+  temp = read.csv(paste0("~/Documents/Rishi/GSoC_2021/Bloomberg-Dataset/GSOC_macro_Bloomberg_data/Fundamental/",
+                         csvfiles[i]))
+  temp$Date = as.Date(temp$Date, format ="%m-%d-%Y")
+  temp <- xts(temp[,2, drop = FALSE], order.by = as.Date(temp[,1], format = "%Y-%m-%d"))
+  assign(x = paste0('data', i), value = temp, envir = fundamental_data)
 }
 
 #behavioral
-csvfiles <- list.files(path = "~/Documents/Rishi/GSoC_2021/Bloomberg-Dataset/GSOC_macro_Bloomberg_data")
+csvfiles <- list.files(path = "~/Documents/Rishi/GSoC_2021/Bloomberg-Dataset/GSOC_macro_Bloomberg_data/Behavioral")
 for(i in 1:length(csvfiles)) {
-  temp = read.csv(paste0("~/Documents/Rishi/GSoC_2021/Bloomberg-Dataset/GSOC_macro_Bloomberg_data/",
+  temp = read.csv(paste0("~/Documents/Rishi/GSoC_2021/Bloomberg-Dataset/GSOC_macro_Bloomberg_data/Behavioral/",
                          csvfiles[i]))
-  #temp$Date <- strftime(strptime(temp$Date,"%m-%d-%Y"),"%Y-%m-%d")
   temp$Date = as.Date(temp$Date, format ="%m-%d-%Y")
-  temp <- xts(temp[,2], order.by = as.Date(temp[,1], format = "%Y-%m-%d"))
-  assign(x = paste0('data', i), value = temp, envir = behavioral_csv)
+  temp <- xts(temp[,2, drop = FALSE], order.by = as.Date(temp[,1], format = "%Y-%m-%d"))
+  assign(x = paste0('data', i), value = temp, envir = behavioral_data)
 }
 
 #catalyst
-csvfiles <- list.files(path = "~/Documents/Rishi/GSoC_2021/Bloomberg-Dataset/GSOC_macro_Bloomberg_data")
+csvfiles <- list.files(path = "~/Documents/Rishi/GSoC_2021/Bloomberg-Dataset/GSOC_macro_Bloomberg_data/Catalyst")
 for(i in 1:length(csvfiles)) {
-  temp = read.csv(paste0("~/Documents/Rishi/GSoC_2021/Bloomberg-Dataset/GSOC_macro_Bloomberg_data/",
+  temp = read.csv(paste0("~/Documents/Rishi/GSoC_2021/Bloomberg-Dataset/GSOC_macro_Bloomberg_data/Catalyst/",
                          csvfiles[i]))
-  assign(x = paste0('data', i), value = temp, envir = catalyst_csv)
+  temp$Date = as.Date(temp$Date, format ="%m-%d-%Y")
+  temp <- xts(temp[,2, drop = FALSE], order.by = as.Date(temp[,1], format = "%Y-%m-%d"))
+  assign(x = paste0('data', i), value = temp, envir = catalyst_data)
 }
 
-#Data pre-processing
-data2 <- eapply(env = fundamental_csv, FUN = merge.zoo)
-
-lapply(data2, function(x) {
-  x$Date <- as.Date(x[,1], format="%m-%d-%Y")
-  return(x)
-})
-
-data_2 <- do.call(merge.zoo, data2)
-
-data_fin0 <- lapply(data2, to.quarterly, OHLC=FALSE)
-data_fin0 <- lapply(data2, as.Date(data2[,1], format="%Y-%m-%d"))
-# dat <- read.csv("~/Documents/Rishi/GSoC_2021/Bloomberg-Dataset/GSOC_macro_Bloomberg_data/GSOC_20dayPutCall.csv")
-#
-# dat2 <- dat[-c(1:5), ]
-# colnames(dat2)[1] <- "Date"
-# colnames(dat2)[2] <- "PX_LAST"
-#
-# dat2$Date<- strftime(strptime(dat2$Date,"%m-%d-%Y"),"%Y-%m-%d")
-# PutCall <- xts(dat2[,2], as.Date(dat2[,1], format = "%Y-%m-%d", env = econ_data))
-#
-# rm(dat,dat2)
-
-data2$Date<- strftime(strptime(data2$Date,"%m/%d/%Y"),"%Y-%m-%d")
-PutCall <- xts(data2[,2], as.Date(dat2[,1], format = "%Y-%m-%d", env = econ_data))
-
-#as.Date(data2$Date, format="%m-%d-%Y")
-#function(x) as.Date(x[,1], format="%Y-%m-%d")
 
 ### Merge data - this will store it in a list
 data_fundamental <- eapply(env = fundamental_data, FUN = merge.xts)
 data_behavioral  <- eapply(env = behavioral_data, FUN = merge.xts)
 data_catalyst    <- eapply(env = catalyst_data, FUN = merge.xts)
 
-## Check Periodicities
-periodicities <- as.data.frame(do.call(rbind, lapply(data, periodicity)))
-#View(periodicities)
-ls_periodicities <- lapply(data, periodicity)
-periodicities$start <- as.Date(sapply(ls_periodicities, "[[", 3))
-periodicities$end <- as.Date(sapply(ls_periodicities, "[[", 4))
-periodicities # view periodicities
-rm(ls_periodicities)
+#clean-up
+rm(temp)
+rm(i)
 
-#Convert into quaterly
-data_fin_1 <- lapply(data_fundamental, to.quarterly, OHLC=FALSE)
-data_fin_2 <- lapply(data_behavioral, to.quarterly, OHLC=FALSE)
-data_fin_3 <- lapply(data_catalyst, to.quarterly, OHLC=FALSE)
+
+## Check Periodicities
+# Fundamental
+ls_fun_periodicities <- lapply(data_fundamental, periodicity)
+fun_periodicities <- as.data.frame(do.call(rbind, lapply(data_fundamental, periodicity)))
+fun_periodicities$start <- as.Date(sapply(ls_fun_periodicities, "[[", 3))
+fun_periodicities$end <- as.Date(sapply(ls_fun_periodicities, "[[", 4))
+fun_periodicities
+
+# Behavioral
+ls_beh_periodicities <- lapply(data_behavioral, periodicity)
+beh_periodicities <- as.data.frame(do.call(rbind, lapply(data_behavioral, periodicity)))
+beh_periodicities$start <- as.Date(sapply(ls_beh_periodicities, "[[", 3))
+beh_periodicities$end <- as.Date(sapply(ls_beh_periodicities, "[[", 4))
+beh_periodicities
+
+# Catalyst
+ls_cat_periodicities <- lapply(data_catalyst, periodicity)
+cat_periodicities <- as.data.frame(do.call(rbind, lapply(data_catalyst, periodicity)))
+cat_periodicities$start <- as.Date(sapply(ls_cat_periodicities, "[[", 3))
+cat_periodicities$end <- as.Date(sapply(ls_cat_periodicities, "[[", 4))
+cat_periodicities
+
+
+## Convert into Monthly
+data_fin_1 <- lapply(data_fundamental, to.monthly, OHLC=FALSE)
+data_fin_2 <- lapply(data_behavioral, to.monthly, OHLC=FALSE)
+data_fin_3 <- lapply(data_catalyst, to.monthly, OHLC=FALSE)
 
 #clean-up
 rm(data_fundamental)
@@ -126,43 +116,27 @@ rm(data_behavioral)
 rm(data_catalyst)
 
 #merge data
-xts_data_quart_1 <- do.call(merge.xts, data_fin_1)
-xts_data_quart_2 <- do.call(merge.xts, data_fin_2)
-xts_data_quart_3 <- do.call(merge.xts, data_fin_3)
+xts_data_fun <- do.call(merge.xts, data_fin_1)
+xts_data_fun <- na.locf(xts_data_fun, na.rm = TRUE)
+
+xts_data_beh <- do.call(merge.xts, data_fin_2)
+xts_data_beh <- na.locf(xts_data_beh, na.rm = TRUE)
+
+xts_data_cat <- do.call(merge.xts, data_fin_3)
+xts_data_cat <- na.locf(xts_data_cat, na.rm = TRUE)
+
+
+## Align Data
+xts_data_fun <- xts_data_fun["2007-12/"]
+xts_data_beh <- xts_data_beh["2007-12/"]
+xts_data_cat <- xts_data_cat["2007-12/"]
+
 
 #clean-up
 rm(data_fin_1)
 rm(data_fin_2)
 rm(data_fin_3)
 
-#Include complete data
-idx_complete_1 <- which(complete.cases(xts_data_quart_1) == TRUE)
-idx_complete_2 <- which(complete.cases(xts_data_quart_2) == TRUE)
-idx_complete_3 <- which(complete.cases(xts_data_quart_3) == TRUE)
-
-#Final trimed Datasets
-trim_data_fundamental = xts_data_quart_1[idx_complete_1]
-trim_data_behavioral = xts_data_quart_2[idx_complete_2]
-trim_data_catalyst = xts_data_quart_3[idx_complete_3]
-
-#clean-up
-rm(xts_data_quart_1)
-rm(xts_data_quart_2)
-rm(xts_data_quart_3)
-
-
-#xts_data_quart = xts_data_quart["1974-12-01/2020-12-01"]
-
-#Plot, Visualize and get some initial Insights
-library(ggplot2)
-ggplot(trim_data, aes(x = Index, y = trim_data$UMCSENT)) + geom_line()
-autoplot(facet)
-
-## SWfore()
-require(MTS)
-results <- SWfore(y = trim_data$UMCSENT, x = trim_data[,-c(1)], orig = length(idx_complete)-2, m = 5)
-# results <- SWfore(y = trim_data$UMCSENT, x = trim_data[,-1], orig = length(idx_complete)-1, m = 5)
-cbind(trim_data$UMCSENT[(length(idx_complete)-2+1):length(idx_complete)], results$yhat)
 
 ## Using SWFore to build Diffusion Indexes - Function
 "DiffIdx" <- function(x,orig,m){
@@ -209,49 +183,101 @@ cbind(trim_data$UMCSENT[(length(idx_complete)-2+1):length(idx_complete)], result
   #    cat("MSE of out-of-sample forecasts: ",MSE,"\n")
   # }
 
-  DiffIdx <- DF
+  DiffIdx <- xts(DF, index(x1))
 }
 
 #Constructing Diffusion Index
 
 #fundamental
-fundamental_DI <- DiffIdx(trim_data_fundamental, orig = length(idx_complete_1)-2, m = 1)
+fundamental_DI <- DiffIdx(xts_data_fun, orig = nrow(xts_data_fun), m = 1)
 head(fundamental_DI)
 
 #behavioral
-behavioral_DI <- DiffIdx(trim_data_behavioral, orig = length(idx_complete_2)-2, m = 1)
+behavioral_DI <- DiffIdx(xts_data_beh, orig = nrow(xts_data_beh), m = 1)
 head(behavioral_DI)
 
 #catalyst
-catalyst_DI <- DiffIdx(trim_data_catalyst, orig = length(idx_complete_3)-2, m = 1)
+catalyst_DI <- DiffIdx(xts_data_cat, orig = nrow(xts_data_cat), m = 1)
 head(catalyst_DI)
+
+
+## Plot DI(s)
+plot_data <- cbind(fundamental_DI, behavioral_DI, catalyst_DI)
+plot(plot_data, main = "Diffusion Index Plot")
+addLegend("topright", on=1,
+          legend.names = c("Fundamental DI", "Behavioral DI", "Catalyst DI"),
+          lty=c(1, 1), lwd=c(2, 1))
+
 
 #Scaling & Standardizing the observation
 library(roll)
+x <- plot_data # we can use plot_data...it is complete
+x$DI <- rowMeans(coredata(plot_data))
+scaled_DI <- roll_scale(x, width = 5, na_restore = FALSE)
 
-x <- fundamental_DI
 
-roll_scale(x, width = 5, na_restore = FALSE)
+# Plot Scaled DI(s)
+plot(scaled_DI, main = "Diffusion Index Plot - scaled")
+addLegend("topright", on=1,
+          legend.names = c("Fundamental DI", "Behavioral DI", "Catalyst DI"),
+          lty=c(1, 1), lwd=c(2, 1))
 
 
 ## Getting S&P 500 Data
-SP_500 <- getSymbols (Symbols = 'SP500', src= 'FRED', auto.assign = FALSE)
-SP_500_quart <- lapply (SP_500, to.quarterly, OHLC=FALSE)
+SP_500 <- getSymbols (Symbols = 'SPY', src= 'yahoo', auto.assign = FALSE)
 
-# S&P Calculation
+library(PerformanceAnalytics)
+SP_500_period <- Cl(to.monthly(SP_500))
+
+# We get data starting Jan 2007 for the S&P 500, so we remove everything before Dec 2007, the start of the Diffusion Indexes
+SP_500_period <- SP_500_period["2007-12/"]
+#Calculate S&P Returns
+x$SPR <- Return.calculate(SP_500_period)
+
+SPDI <- cbind(x$DI,x$SPR)
+# Plot DI vs S&P 500
+plot.default(x$DI,x$SPR)
+
+
+# S&P Z-score Calculation (For reference - not necessary)
 x2 <- SP_500_quart$SP500
-
 roll_scale(x2, width = 5, na_restore = FALSE)
 
-## Using Random Forest
+## Using SWfore()
+require(MTS)
+results <- SWfore(y = trim_data$UMCSENT, x = trim_data[,-c(1)], orig = length(idx_complete)-2, m = 5)
+# results <- SWfore(y = trim_data$UMCSENT, x = trim_data[,-1], orig = length(idx_complete)-1, m = 5)
+cbind(trim_data$UMCSENT[(length(idx_complete)-2+1):length(idx_complete)], results$yhat)
 
+
+
+## Using Machine Learning
+
+library(caret)
 require(ranger)
 set.seed(123)
 
+myTimeControl <- trainControl(method = "timeslice",
+                              initialWindow = 36,
+                              horizon = 12,
+                              fixedWindow = FALSE,
+                              allowParallel = TRUE,
+                              verboseIter = TRUE)
+# seeds = seeds)
+train.y <- factor(SPDI$SPR, labels = c("yes", "no"))
+
+tuneLength.num <- 5
+mod.ranger <- train(x = d ~ .
+                    data = SPDI,
+                    method = "ranger",
+                    trControl = myTimeControl,
+                    tuneLength=tuneLength.num)
+plot(mod.ranger)
+
 # Lag x values, build x_train and y_train
-lag_x <- lag.xts(diffIdx)
-x_train <- lag_x[2:(nrow(diffIdx)-2),] # train goes from 32 obs to 29, 1 lag and 2 obs for prediction
-colnames(x_train) <- c("DI_1","DI_2","DI_3","DI_4", "DI_5")
+lag_x <- lag.xts(x$DI)
+x_train <- lag_x[2:(nrow(x$DI)-2),] # train goes from 32 obs to 29, 1 lag and 2 obs for prediction
+colnames(x_train) <- c("DI")
 # nrow(x_train)
 y_train <- trim_data$UMCSENT[2:(nrow(trim_data)-2)]
 # nrow(y_train)
