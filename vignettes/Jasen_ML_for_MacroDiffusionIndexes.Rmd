@@ -76,6 +76,7 @@ Now we will be using the 'getSymbols()' function of the 'quantmod' package in or
 The downloaded data will be stored in the form of xts timeseries object in the specified environment.
 
 ```{r get_symbols_FRED}
+
 ### Get data
 getSymbols(Symbols = symbols1,
            src='FRED',
@@ -95,45 +96,39 @@ rm(symbols2)
 rm(symbols3)
 ```
 
-```{r eval=FALSE}
-# ## Get CSV Data
-# 
-# fundamental_csv <- new.env()
-# behavioral_csv <- new.env()
-# catalyst_csv <- new.env()
-# 
-# #fundamental
-# # csvfiles <- list.files(path = "~/Documents/UserPath")
-# csvfiles <- list.files(path = "~/Personal-Work/GitHub/Bloomberg-Dataset/GSOC_macro_Bloomberg_data/")
-# # for(i in 1:length(csvfiles)) {
-# #   temp = read.csv(paste0("~/Documents/UserPath",
-# #                       csvfiles[i]))
-# #   assign(x = paste0('data', i), value = temp, envir = fundamental_csv)
-# # }
-# for(i in 1:length(csvfiles)) {
-#   temp = read.csv(paste0("~/Personal-Work/GitHub/Bloomberg-Dataset/GSOC_macro_Bloomberg_data/",
-#                       csvfiles[i]))
-#   assign(x = paste0('data', i), value = temp, envir = fundamental_csv)
-# }
-# 
-# #behavioral
-# csvfiles <- list.files(path = "~/Documents/UserPath")
-# for(i in 1:length(csvfiles)) {
-#   temp = read.csv(paste0("~/Documents/UserPath",
-#                          csvfiles[i]))
-#   #temp$Date <- strftime(strptime(temp$Date,"%m-%d-%Y"),"%Y-%m-%d")
-#   temp$Date = as.Date(temp$Date, format ="%m-%d-%Y")
-#   temp <- xts(temp[,2], order.by = as.Date(temp[,1], format = "%Y-%m-%d"))
-#   assign(x = paste0('data', i), value = temp, envir = behavioral_csv)
-# }
-# 
-# #catalyst
-# csvfiles <- list.files(path = "~/Documents/UserPath")
-# for(i in 1:length(csvfiles)) {
-#   temp = read.csv(paste0("~/Documents/UserPath",
-#                          csvfiles[i]))
-#   assign(x = paste0('data', i), value = temp, envir = catalyst_csv)
-# }
+```{r get_CSV}
+## Get CSV Data
+
+#fundamental
+csvfiles <- list.files(path = "~/Documents/Rishi/GSoC_2021/Bloomberg-Dataset/GSOC_macro_Bloomberg_data/Fundamental")
+for(i in 1:length(csvfiles)) {
+  temp = read.csv(paste0("~/Documents/Rishi/GSoC_2021/Bloomberg-Dataset/GSOC_macro_Bloomberg_data/Fundamental/",
+                         csvfiles[i]))
+  temp$Date = as.Date(temp$Date, format ="%m-%d-%Y")
+  temp <- xts(temp[,2, drop = FALSE], order.by = as.Date(temp[,1], format = "%Y-%m-%d"))
+  assign(x = paste0('data', i), value = temp, envir = fundamental_data)
+}
+
+#behavioral
+csvfiles <- list.files(path = "~/Documents/Rishi/GSoC_2021/Bloomberg-Dataset/GSOC_macro_Bloomberg_data/Behavioral")
+for(i in 1:length(csvfiles)) {
+  temp = read.csv(paste0("~/Documents/Rishi/GSoC_2021/Bloomberg-Dataset/GSOC_macro_Bloomberg_data/Behavioral/",
+                         csvfiles[i]))
+  temp$Date = as.Date(temp$Date, format ="%m-%d-%Y")
+  temp <- xts(temp[,2, drop = FALSE], order.by = as.Date(temp[,1], format = "%Y-%m-%d"))
+  assign(x = paste0('data', i), value = temp, envir = behavioral_data)
+}
+
+#catalyst
+csvfiles <- list.files(path = "~/Documents/Rishi/GSoC_2021/Bloomberg-Dataset/GSOC_macro_Bloomberg_data/Catalyst")
+for(i in 1:length(csvfiles)) {
+  temp = read.csv(paste0("~/Documents/Rishi/GSoC_2021/Bloomberg-Dataset/GSOC_macro_Bloomberg_data/Catalyst/",
+                         csvfiles[i]))
+  temp$Date = as.Date(temp$Date, format ="%m-%d-%Y")
+  temp <- xts(temp[,2, drop = FALSE], order.by = as.Date(temp[,1], format = "%Y-%m-%d"))
+  assign(x = paste0('data', i), value = temp, envir = catalyst_data)
+}
+
 ```
 
 ```{r merge_xts}
@@ -369,6 +364,7 @@ library(caret)
 library(PerformanceAnalytics)
 ret_SP500 <- Return.calculate(Ad(SP_500_period))
 one_hot_ret_SP500 <- ifelse(ret_SP500 > 0, 1, 0)
+one_hot_ret_SP500 <- as.factor(ret_SP500)
 newdata <- cbind(x_lagged, one_hot_ret_SP500)[-(1:16),]
 
 myTimeControl <- trainControl(method = "timeslice",
@@ -385,7 +381,8 @@ mod.ranger <- train(SP_500.Adjusted ~ .,
                     data = newdata,
                     method = "ranger",
                     trControl = myTimeControl,
-                    tuneLength=tuneLength.num)
+                    tuneLength=tuneLength.num,
+                    na.action=na.exclude)
 plot(mod.ranger)
 
 ```
