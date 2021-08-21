@@ -253,6 +253,34 @@ cbind(trim_data$UMCSENT[(length(idx_complete)-2+1):length(idx_complete)], result
 
 ## Using Machine Learning
 
+lag_order <- 6 # the desired number of lags (six months)
+horizon <- 12 # the forecast horizon (twelve months)
+
+y_train <- SPDI$SPR["2008-01/2020-12"] # the target
+X_train <- SPDI$DI["2008-01/2020-12"] # everything but the target
+
+y_test <- window(SPDI$SPR["2021-01/2021-08"])
+X_test <- window(SPDI$DI["2021-01/2021-08"])
+
+forecasts_rf <- numeric(horizon)
+for (i in 1:horizon){
+  # set seed
+  set.seed(2019)
+  # fit the model
+  fit_rf <- randomForest(X_train, y_train)
+  # predict using the test set
+  forecasts_rf[i] <- predict(fit_rf, X_test)
+  # here is where we repeatedly reshape the training data to reflect the time distance
+  # corresponding to the current forecast horizon.
+  y_train <- y_train[-1]
+  X_train <- X_train[-nrow(X_train), ]
+}
+
+
+
+DI_lagged <- do.call(cbind, lapply(diff.lookbacks, function(n) lag(SPDI$DI, k = n)))
+SPR_lagged <- do.call(cbind, lapply(diff.lookbacks, function(n) lag(SPDI$SPR, k = n)))
+
 library(caret)
 require(ranger)
 set.seed(123)
@@ -264,11 +292,15 @@ myTimeControl <- trainControl(method = "timeslice",
                               allowParallel = TRUE,
                               verboseIter = TRUE)
 # seeds = seeds)
-train.y <- factor(SPDI$SPR, labels = c("yes", "no"))
+train.y <- factor(SPDI$SPR)
+
+index <- createDataPartition(SPDI$DI, p=0.80, list=FALSE)
+trainSet <- SPDI[ index,]
+testSet  <- SPDI[-index,]
 
 tuneLength.num <- 5
-mod.ranger <- train(x = d ~ .
-                    data = SPDI,
+mod.ranger <- train(SPDI$SPR,
+                    SPDI$DI,
                     method = "ranger",
                     trControl = myTimeControl,
                     tuneLength=tuneLength.num)
