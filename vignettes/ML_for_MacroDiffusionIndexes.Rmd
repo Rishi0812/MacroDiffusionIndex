@@ -49,7 +49,7 @@ Federal Reserve Economic Data (FRED) is an online database consisting of hundred
 
 First we'll create a new environment and a vector object containing the specific names(symbols) of the dataset we will be using.
 
-```{r}
+```{r setting up envir and symbols}
 #Create new environment
 fundamental_data <- new.env()
 behavioral_data  <- new.env()
@@ -75,7 +75,7 @@ symbols3 <- c('CFNAIMA3', 'STLFSI2', # Economic Surprise
 Now we will be using the 'getSymbols()' function of the 'quantmod' package in order to import the required dataset from fred.
 The downloaded data will be stored in the form of xts timeseries object in the specified environment.
 
-```{r}
+```{r import fred data}
 ### Get data
 getSymbols(Symbols = symbols1,
            src='FRED',
@@ -94,7 +94,7 @@ rm(symbols2)
 rm(symbols3)
 ```
 
-```{r eval=FALSE}
+```{r import csv data}
 ## Get CSV Data
 
 #fundamental
@@ -125,7 +125,7 @@ for(i in 1:length(csvfiles)) {
 }
 ```
 
-```{r}
+```{r Merge data into list}
 ### Merge data - this will store it in a list
 data_fundamental <- eapply(env = fundamental_data, FUN = merge.xts)
 data_behavioral  <- eapply(env = behavioral_data, FUN = merge.xts)
@@ -136,7 +136,7 @@ rm(temp)
 rm(i)
 ```
 
-```{r}
+```{r data periodicities}
 ## Check Periodicities
 # Fundamental
 ls_fun_periodicities <- lapply(data_fundamental, periodicity)
@@ -161,7 +161,7 @@ cat_periodicities
 ```
 
 
-```{r}
+```{r convert data}
 ## Convert into Monthly
 data_fin_1 <- lapply(data_fundamental, to.monthly, OHLC=FALSE)
 data_fin_2 <- lapply(data_behavioral, to.monthly, OHLC=FALSE)
@@ -174,7 +174,7 @@ rm(data_catalyst)
 ```
 
 
-```{r}
+```{r merge data}
 #merge data
 xts_data_fun <- do.call(merge.xts, data_fin_1)
 xts_data_fun <- na.locf(xts_data_fun, na.rm = TRUE)
@@ -186,7 +186,7 @@ xts_data_cat <- do.call(merge.xts, data_fin_3)
 xts_data_cat <- na.locf(xts_data_cat, na.rm = TRUE)
 ```
 
-```{r}
+```{r Align}
 ## Align Data
 xts_data_fun <- xts_data_fun["2007-12/"]
 xts_data_beh <- xts_data_beh["2007-12/"]
@@ -199,7 +199,7 @@ rm(data_fin_2)
 rm(data_fin_3)
 ```
 
-```{r}
+```{r DI Function}
 ## Using SWFore to build Diffusion Indexes - Function
 "DiffIdx" <- function(x,orig,m){
   ### Builds Stock and Watson's diffusion index prediction
@@ -249,7 +249,7 @@ rm(data_fin_3)
 }
 ```
 
-```{r}
+```{r Building DI}
 #Constructing Diffusion Index
 
 #fundamental
@@ -265,7 +265,7 @@ catalyst_DI <- DiffIdx(xts_data_cat, orig = nrow(xts_data_cat), m = 1)
 head(catalyst_DI)
 ```
 
-```{r}
+```{r DI(S) Plot}
 ## Plot DI(s)
 plot_data <- cbind(fundamental_DI, behavioral_DI, catalyst_DI)
 plot(plot_data, main = "Diffusion Index Plot")
@@ -274,7 +274,7 @@ addLegend("topright", on=1,
           lty=c(1, 1), lwd=c(2, 1))
 ```
 
-```{r}
+```{r Scaling obv}
 #Scaling & Standardizing the observation
 library(roll)
 x <- plot_data # we can use plot_data...it is complete
@@ -282,7 +282,7 @@ x$DI <- rowMeans(coredata(plot_data))
 scaled_DI <- roll_scale(x, width = 5, na_restore = FALSE)
 ```
 
-```{r}
+```{r Plot Scaled DI}
 # Plot Scaled DI(s)
 plot(scaled_DI, main = "Diffusion Index Plot - scaled")
 addLegend("topright", on=1,
@@ -290,26 +290,118 @@ addLegend("topright", on=1,
           lty=c(1, 1), lwd=c(2, 1))
 ```
 
-```{r}
+```{r S&P 500}
 ## Getting S&P 500 Data
 SP_500 <- getSymbols (Symbols = 'SPY', src= 'yahoo', auto.assign = FALSE)
 
 library(PerformanceAnalytics)
-SP_500_period <- Cl(to.monthly(SP_500))
+SP_500_period <- to.monthly(SP_500)
 
 # We get data starting Jan 2007 for the S&P 500, so we remove everything before Dec 2007, the start of the Diffusion Indexes
 SP_500_period <- SP_500_period["2007-12/"]
 #Calculate S&P Returns
-x$SPR <- Return.calculate(SP_500_period)
+x$SPR <- Return.calculate(Ad(SP_500_period))
 ```
 
-```{r}
+```{r plot DI vs SPR}
 # Plot DI vs S&P 500
-plot.default(x$DI,x$SPR)
+plot.default(x$DI, x$SPR)
+```
+```{r apply lag}
+## Lagging Values
+
+xl <- merge(x$DI, scaled_DI)
+diff.lookbacks <- 1:12
+xl_lagged <- do.call(cbind, lapply(diff.lookbacks, function(n) lag(xl, k = n)))
+head(xl_lagged, 12) # Use up to 12 lags...considering this is monthly data, 12m feels adequate
 ```
 
-```{r}
-# S&P Z-score Calculation (For reference - not necessary)
-x2 <- SP_500_quart$SP500
-roll_scale(x2, width = 5, na_restore = FALSE)
+```{r ML}
+
+library(doParallel)
+library(caret)
+
+# Tuning S&P 500
+ret_SP500 <- Return.calculate(Ad(SP_500_period))
+one_hot_ret_SP500 <- ifelse(ret_SP500 > 0, 1, 0)
+newdata <- cbind(xl_lagged, one_hot_ret_SP500)
+newdata1 <- data.frame(newdata)
+newdata1$SP_500.Adjusted <- as.factor(newdata1$SP_500.Adjusted)
+
+## Split Data
+train.perc = 0.8
+train.indx = 1:as.integer(dim(newdata1)[1] * train.perc)
+
+train.data <- newdata1[train.indx,]
+test.data  <- newdata1[-train.indx ,]
+
+set.seed(125)
+
+## Tuning
+myTimeControl <- trainControl(method = "timeslice",
+                              initialWindow = 36,
+                              horizon = 12,
+                              fixedWindow = FALSE,
+                              allowParallel = TRUE,
+                              verboseIter = TRUE)
+
+# tune_grid <- expand.grid(nrounds = 200,
+#                         max_depth = 5,
+#                         eta = 0.05,
+#                         gamma = 0.01,
+#                         colsample_bytree = 0.75,
+#                         min_child_weight = 0,
+#                         subsample = 0.5)
+# 
+# trctrl <- trainControl(method = "cv", number = 5)
+
+
+## Training
+tuneLength.num <- 5
+mod.rf <- train(SP_500.Adjusted ~ .,
+                    data = train.data,
+                    method = "ranger",
+                    trControl = myTimeControl,
+                    tuneLength = tuneLength.num,
+                    na.action = na.exclude)
+
+# mod.xg <- train(SP_500.Adjusted ~ .,
+#                 train.data,
+#                 method = "xgbTree",
+#                 trControl = trctrl,
+#                 tuneGrid = tune_grid,
+#                 tuneLength = 10,
+#                 na.action = na.exclude)
+
+mod.rf$results
+
+## Visualisations
+
+featurePlot(x = train.data[, 1:18], 
+            y = train.data$SP_500.Adjusted, 
+            plot = "density",
+            strip=strip.custom(par.strip.text=list(cex=.7)),
+            scales = list(x = list(relation="free"), 
+                          y = list(relation="free")))
+
+featurePlot(x = train.data[, 1:18], 
+            y = train.data$SP_500.Adjusted, 
+            plot = "box",
+            strip=strip.custom(par.strip.text=list(cex=.7)),
+            scales = list(x = list(relation="free"), 
+                          y = list(relation="free")))
+
+featurePlot(x = x[, 1:3], 
+            y = SP_500_period$SP_500.Adjusted,  
+            plot = "scatter",
+            type = c("p", "smooth"),
+            layout = c(3, 1))
+```
+
+```{r Fore}
+## Forecast
+
+pred.rf <- predict(mod.rf, newdata = test.data)
+head(pred.rf)
+
 ```
