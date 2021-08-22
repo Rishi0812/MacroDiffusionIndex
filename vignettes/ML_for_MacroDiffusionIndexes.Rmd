@@ -1,8 +1,7 @@
 ---
 title: "**Machine Learning for Macro Diffusion Indexes**"
 description: >
-  A brief vignette explaining the process of forecasting Macroeconomic timeseries   using both traditional method and applying Machine Learning Algorithmns by 
-  constructing Diffusion Indexes.
+  A vignette explaining the process of forecasting Macroeconomic timeseries with Machine Learning Algorithmns by constructing Diffusion Indexes.
 header-includes:
 - \usepackage[default]{sourcesanspro}
 - \usepackage[T1]{fontenc}
@@ -31,13 +30,13 @@ Macroeconomics (from the Greek prefix makro- meaning "large" + economics) is a b
 The main goal of the project is to help macroeconomists to obtain useful insights from a dataset as a whole with the help of useful Machine Learning Algorithms by creating it's potential diffusion indexes.
 Time series analysis is an area of statistics that focuses on analyzing time-dependent data. Time series can be analyzed either descriptively or inferentially. This has led to different approaches depending on the type of information available in time-series data.
 
-We will be using the method of Vector Auto Regression for generating the forecasts initially and later proceed with the Machine Learning approach.
+We will be using the method proposed by Stock and Watson in their paper called "Macroeconomic Forecasting Using Diffusion Indexes" published in 2002 for generating the forecasts initially and later proceed with the Machine Learning approach.
 \
 
 ### Setting Up the R Environment
 
 We will start by calling the required R libraries for Data parsing, processing and manipulation.
-Here we have used two libraries, "quantmod" developed by [Joshua Ulrich](https://github.com/joshuaulrich).
+Here we have used the library, "quantmod" developed by [Joshua Ulrich](https://github.com/joshuaulrich).
 
 ```{r setup}
 require(quantmod)
@@ -48,6 +47,8 @@ require(quantmod)
 Federal Reserve Economic Data (FRED) is an online database consisting of hundreds of thousands of economic data time series from scores of national, international, public, and private sources. FRED, created and maintained by the Research Department at the Federal Reserve Bank of St. Louis, goes far beyond simply providing data: It combines data with a powerful mix of tools that help the user understand, interact with, display, and disseminate the data. In essence, FRED helps users tell their data stories. 
 
 First we'll create a new environment and a vector object containing the specific names(symbols) of the dataset we will be using.
+
+We have identified around 70+ datasets for our forecasts which we have divided into three main categories i.e Fundamental, Behavioral and Catalyst.
 
 ```{r setting up envir and symbols}
 #Create new environment
@@ -74,6 +75,7 @@ symbols3 <- c('CFNAIMA3', 'STLFSI2', # Economic Surprise
 
 Now we will be using the 'getSymbols()' function of the 'quantmod' package in order to import the required dataset from fred.
 The downloaded data will be stored in the form of xts timeseries object in the specified environment.
+\
 
 ```{r import fred data}
 ### Get data
@@ -93,6 +95,11 @@ rm(symbols1)
 rm(symbols2)
 rm(symbols3)
 ```
+
+We are also using some *CSV* datasets in out forecasts, Below is an example if you want to include any csv files you prefer.
+
+Note: Please change the file directory below to select your preferred CSV files from your local storage respectively. 
+\
 
 ```{r import csv data}
 ## Get CSV Data
@@ -125,6 +132,11 @@ for(i in 1:length(csvfiles)) {
 }
 ```
 
+
+Now we are going to merge all the datasets stored in our environments into *lists* to further operate on it easily.
+\
+
+
 ```{r Merge data into list}
 ### Merge data - this will store it in a list
 data_fundamental <- eapply(env = fundamental_data, FUN = merge.xts)
@@ -135,6 +147,11 @@ data_catalyst    <- eapply(env = catalyst_data, FUN = merge.xts)
 rm(temp)
 rm(i)
 ```
+
+### Data Preprocessing
+
+We will start by checking the *Periodicities* of all the Datasets which we have considered to get a clear insight.
+\
 
 ```{r data periodicities}
 ## Check Periodicities
@@ -159,7 +176,8 @@ cat_periodicities$start <- as.Date(sapply(ls_cat_periodicities, "[[", 3))
 cat_periodicities$end <- as.Date(sapply(ls_cat_periodicities, "[[", 4))
 cat_periodicities
 ```
-
+We will proceed by converting the datasets to monthly, At this point it gives us warning messages about missing values being removed. We will ignore this for now.
+\
 
 ```{r convert data}
 ## Convert into Monthly
@@ -173,6 +191,8 @@ rm(data_behavioral)
 rm(data_catalyst)
 ```
 
+Now we need to remove/fill all the *NA* values in our datasets as we can't move forward with the forecasts with incomplete data.
+\
 
 ```{r merge data}
 #merge data
@@ -186,6 +206,9 @@ xts_data_cat <- do.call(merge.xts, data_fin_3)
 xts_data_cat <- na.locf(xts_data_cat, na.rm = TRUE)
 ```
 
+We further align our Datasets a bit to have common starting point and maintain uniformity across all the datasets.
+\
+
 ```{r Align}
 ## Align Data
 xts_data_fun <- xts_data_fun["2007-12/"]
@@ -198,6 +221,10 @@ rm(data_fin_1)
 rm(data_fin_2)
 rm(data_fin_3)
 ```
+
+
+Now we have used and altered the SWfore function from the package [MTS] (https://cran.r-project.org/web/packages/MTS/index.html)
+\
 
 ```{r DI Function}
 ## Using SWFore to build Diffusion Indexes - Function
@@ -249,6 +276,10 @@ rm(data_fin_3)
 }
 ```
 
+ ### Constructing the Diffusion Indexes
+ 
+ \
+
 ```{r Building DI}
 #Constructing Diffusion Index
 
@@ -265,6 +296,9 @@ catalyst_DI <- DiffIdx(xts_data_cat, orig = nrow(xts_data_cat), m = 1)
 head(catalyst_DI)
 ```
 
+Now we make some visualizations of our Diffusion Indexes to get more insights.
+\ 
+
 ```{r DI(S) Plot}
 ## Plot DI(s)
 plot_data <- cbind(fundamental_DI, behavioral_DI, catalyst_DI)
@@ -274,6 +308,9 @@ addLegend("topright", on=1,
           lty=c(1, 1), lwd=c(2, 1))
 ```
 
+We further move on to scale our data. We will be using the package 'roll' to scale our data by calculating the Z-scores.
+\
+
 ```{r Scaling obv}
 #Scaling & Standardizing the observation
 library(roll)
@@ -282,6 +319,9 @@ x$DI <- rowMeans(coredata(plot_data))
 scaled_DI <- roll_scale(x, width = 5, na_restore = FALSE)
 ```
 
+Now we quickly plot our scaled Diffusion Indexes to get a rough visualization.
+\
+
 ```{r Plot Scaled DI}
 # Plot Scaled DI(s)
 plot(scaled_DI, main = "Diffusion Index Plot - scaled")
@@ -289,6 +329,12 @@ addLegend("topright", on=1,
           legend.names = c("Fundamental DI", "Behavioral DI", "Catalyst DI"),
           lty=c(1, 1), lwd=c(2, 1))
 ```
+
+We have chosen to make forecasts of S&P 500 from our Diffusion Indexes.
+The Standard and Poor's 500, or simply the S&P 500, is a stock market index tracking the performance of 500 large companies listed on stock exchanges in the United States. It is one of the most commonly followed equity indices.
+
+Here we get our S&P 500 data, change it to monthly data and calculate it's returns.
+\
 
 ```{r S&P 500}
 ## Getting S&P 500 Data
@@ -303,6 +349,10 @@ SP_500_period <- SP_500_period["2007-12/"]
 x$SPR <- Return.calculate(Ad(SP_500_period))
 ```
 
+Now it's time to check the correlation between our Diffusion Indexes and the S&P 500 Data.
+We plot a scatter plot to get a quick rough idea, Further, we go on calculating the lags of our Input Data.
+\
+
 ```{r plot DI vs SPR}
 # Plot DI vs S&P 500
 plot.default(x$DI, x$SPR)
@@ -315,6 +365,16 @@ diff.lookbacks <- 1:12
 xl_lagged <- do.call(cbind, lapply(diff.lookbacks, function(n) lag(xl, k = n)))
 head(xl_lagged, 12) # Use up to 12 lags...considering this is monthly data, 12m feels adequate
 ```
+\
+
+### Applying the Machine Learning Algorithm(s)
+
+We have decided to use different ML Algo's to train and make forecasts, our primary algorithm as of now is Random Forest with approximately 72% accuracy. We further aim on improving the alogrithms and comparing the relative performances.
+
+We have used the caret package (short for Classification And Regression Training) which contains functions to streamline the model training process for complex regression and classification problems.
+
+Here we first load all the required packages then use one hot encoding and try to convert the S&P 500 dataset into a binary dataset. This allows us to successfully carry out our Random Forest classification or any other related methods. Then we split our data into training and testing with 80:20 ratio and train on the first 80% of our data with the remaining to test and make forecasts.
+\
 
 ```{r ML}
 
@@ -353,7 +413,7 @@ myTimeControl <- trainControl(method = "timeslice",
 #                         min_child_weight = 0,
 #                         subsample = 0.5)
 # 
-# trctrl <- trainControl(method = "cv", number = 5)
+# trctrl <- trainControl(method = "cv", number = 5) #Code for xgboost
 
 
 ## Training
@@ -371,10 +431,16 @@ mod.rf <- train(SP_500.Adjusted ~ .,
 #                 trControl = trctrl,
 #                 tuneGrid = tune_grid,
 #                 tuneLength = 10,
-#                 na.action = na.exclude)
+#                 na.action = na.exclude)  #Code for xgboost
 
 mod.rf$results
 
+```
+
+We now get some visualizations of our forecasts, a density, box and scatter plot.
+\
+
+```{r ML_plot}
 ## Visualisations
 
 featurePlot(x = train.data[, 1:18], 
@@ -397,6 +463,10 @@ featurePlot(x = x[, 1:3],
             type = c("p", "smooth"),
             layout = c(3, 1))
 ```
+
+
+Finally we use the predict() function to get further predictions and take a look at it.
+\
 
 ```{r Fore}
 ## Forecast
