@@ -1,0 +1,481 @@
+---
+title: "**Machine Learning for Macro Diffusion Indexes**"
+description: >
+  A vignette explaining the process of forecasting Macroeconomic timeseries with Machine Learning Algorithmns by constructing Diffusion Indexes.
+header-includes:
+- \usepackage[default]{sourcesanspro}
+- \usepackage[T1]{fontenc}
+output: rmarkdown::html_vignette
+documentclass: extarticle
+fontsize: 12pt
+geometry: margin=2cm
+mainfont: SourceSansPro
+vignette: >
+  %\VignetteIndexEntry{**Machine Learning for Macro Diffusion Indexes**}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+### Introduction
+
+Macroeconomics (from the Greek prefix makro- meaning "large" + economics) is a branch of economics dealing with the performance, structure, behavior, and decision-making of an economy as a whole. For example, using interest rates, taxes and government spending to regulate an economy's growth and stability.
+
+The main goal of the project is to help macroeconomists to obtain useful insights from a dataset as a whole with the help of useful Machine Learning Algorithms by creating it's potential diffusion indexes.
+Time series analysis is an area of statistics that focuses on analyzing time-dependent data. Time series can be analyzed either descriptively or inferentially. This has led to different approaches depending on the type of information available in time-series data.
+
+We will be using the method proposed by Stock and Watson in their paper called "Macroeconomic Forecasting Using Diffusion Indexes" published in 2002 for generating the forecasts initially and later proceed with the Machine Learning approach.
+\
+
+### Setting Up the R Environment
+
+We will start by calling the required R libraries for Data parsing, processing and manipulation.
+Here we have used the library, "quantmod" developed by [Joshua Ulrich](https://github.com/joshuaulrich).
+
+```{r setup}
+require(quantmod)
+```
+
+### Parsing the Data
+
+Federal Reserve Economic Data (FRED) is an online database consisting of hundreds of thousands of economic data time series from scores of national, international, public, and private sources. FRED, created and maintained by the Research Department at the Federal Reserve Bank of St. Louis, goes far beyond simply providing data: It combines data with a powerful mix of tools that help the user understand, interact with, display, and disseminate the data. In essence, FRED helps users tell their data stories. 
+
+First we'll create a new environment and a vector object containing the specific names(symbols) of the dataset we will be using.
+
+We have identified around 70+ datasets for our forecasts which we have divided into three main categories i.e Fundamental, Behavioral and Catalyst.
+
+```{r setting up envir and symbols}
+#Create new environment
+fundamental_data <- new.env()
+behavioral_data  <- new.env()
+catalyst_data    <- new.env()
+
+### Add symbols
+symbols1 <- c('AMTMNO', 'AMTMTI', 'OECDLOLITOAASTSAM', 'ICSA', 'INDPRO', 'T10Y2Y', 'BAA10Y', 'MKTGDPHKA646NWDB', 'MKTGDPSGA646NWDB', 'RGDPNABRA666NRUG', # Economic Trend
+             'NFCI', # Liquidity
+             'M2V', 'TOTCI', 'BOGZ1FA895050005Q' # Velocity
+             )
+
+symbols2 <- c('UMCSENT', 'CSUSHPISA', 'SPCS20RSA', # Confirmation Bias: Surveys
+              'VIXCLS', 'VXVCLS', 'EVZCLS', 'THREEFYTP10', # Representative Bias
+              'EMVOVERALLEMV', # Cognitive Dissonance
+              'BOGZ1FA483064105Q' # Overconfidence
+              )
+
+symbols3 <- c('CFNAIMA3', 'STLFSI2', # Economic Surprise
+              'WLEMUINDXD' # Geopolitics
+              )
+```
+
+Now we will be using the 'getSymbols()' function of the 'quantmod' package in order to import the required dataset from fred.
+The downloaded data will be stored in the form of xts timeseries object in the specified environment.
+\
+
+```{r import fred data}
+### Get data
+getSymbols(Symbols = symbols1,
+           src='FRED',
+           env = fundamental_data)
+
+getSymbols(Symbols = symbols2,
+           src='FRED',
+           env = behavioral_data)
+
+getSymbols(Symbols = symbols3,
+           src='FRED',
+           env = catalyst_data)
+
+rm(symbols1)
+rm(symbols2)
+rm(symbols3)
+```
+
+We are also using some *CSV* datasets in out forecasts, Below is an example if you want to include any csv files you prefer.
+
+Note: Please change the file directory below to select your preferred CSV files from your local storage respectively. 
+
+```{r import csv data}
+## Get CSV Data
+
+#fundamental
+fun_path = "/home/jasen/Personal-Work/GitHub/Bloomberg-Dataset/GSOC_macro_Bloomberg_data/Fundamental/"
+csvfiles <- list.files(path = fun_path)
+for(i in 1:length(csvfiles)) {
+  temp = read.csv(paste0(fun_path, csvfiles[i]))
+  temp$Date = as.Date(temp$Date, format ="%m-%d-%Y")
+  temp <- xts(temp[,2, drop = FALSE], order.by = as.Date(temp[,1], format = "%Y-%m-%d"))
+  assign(x = paste0('data', i), value = temp, envir = fundamental_data)
+}
+
+#behavioral
+beh_path = "/home/jasen/Personal-Work/GitHub/Bloomberg-Dataset/GSOC_macro_Bloomberg_data/Behavioral/"
+csvfiles <- list.files(path = beh_path)
+for(i in 1:length(csvfiles)) {
+  temp = read.csv(paste0(beh_path, csvfiles[i]))
+  temp$Date = as.Date(temp$Date, format ="%m-%d-%Y")
+  temp <- xts(temp[,2, drop = FALSE], order.by = as.Date(temp[,1], format = "%Y-%m-%d"))
+  assign(x = paste0('data', i), value = temp, envir = behavioral_data)
+}
+
+#catalyst
+cat_path = "/home/jasen/Personal-Work/GitHub/Bloomberg-Dataset/GSOC_macro_Bloomberg_data/Catalyst/"
+csvfiles <- list.files(path = cat_path)
+for(i in 1:length(csvfiles)) {
+  temp = read.csv(paste0(cat_path, csvfiles[i]))
+  temp$Date = as.Date(temp$Date, format ="%m-%d-%Y")
+  temp <- xts(temp[,2, drop = FALSE], order.by = as.Date(temp[,1], format = "%Y-%m-%d"))
+  assign(x = paste0('data', i), value = temp, envir = catalyst_data)
+}
+```
+
+
+Now we are going to merge all the datasets stored in our environments into *lists* to further operate on it easily.
+\
+
+
+```{r Merge data into list}
+### Merge data - this will store it in a list
+data_fundamental <- eapply(env = fundamental_data, FUN = merge.xts)
+data_behavioral  <- eapply(env = behavioral_data, FUN = merge.xts)
+data_catalyst    <- eapply(env = catalyst_data, FUN = merge.xts)
+
+#clean-up
+rm(temp)
+rm(i)
+```
+
+### Data Preprocessing
+
+We will start by checking the *Periodicities* of all the Datasets which we have considered to get a clear insight.
+\
+
+```{r data periodicities}
+## Check Periodicities
+# Fundamental
+ls_fun_periodicities <- lapply(data_fundamental, periodicity)
+fun_periodicities <- as.data.frame(do.call(rbind, lapply(data_fundamental, periodicity)))
+fun_periodicities$start <- as.Date(sapply(ls_fun_periodicities, "[[", 3))
+fun_periodicities$end <- as.Date(sapply(ls_fun_periodicities, "[[", 4))
+fun_periodicities
+
+# Behavioral
+ls_beh_periodicities <- lapply(data_behavioral, periodicity)
+beh_periodicities <- as.data.frame(do.call(rbind, lapply(data_behavioral, periodicity)))
+beh_periodicities$start <- as.Date(sapply(ls_beh_periodicities, "[[", 3))
+beh_periodicities$end <- as.Date(sapply(ls_beh_periodicities, "[[", 4))
+beh_periodicities
+
+# Catalyst
+ls_cat_periodicities <- lapply(data_catalyst, periodicity)
+cat_periodicities <- as.data.frame(do.call(rbind, lapply(data_catalyst, periodicity)))
+cat_periodicities$start <- as.Date(sapply(ls_cat_periodicities, "[[", 3))
+cat_periodicities$end <- as.Date(sapply(ls_cat_periodicities, "[[", 4))
+cat_periodicities
+```
+We will proceed by converting the datasets to monthly, At this point it gives us warning messages about missing values being removed. We will ignore this for now.
+\
+
+```{r convert data}
+## Convert into Monthly
+data_fin_1 <- lapply(data_fundamental, to.monthly, OHLC=FALSE)
+data_fin_2 <- lapply(data_behavioral, to.monthly, OHLC=FALSE)
+data_fin_3 <- lapply(data_catalyst, to.monthly, OHLC=FALSE)
+
+#clean-up
+rm(data_fundamental)
+rm(data_behavioral)
+rm(data_catalyst)
+```
+
+Now we need to remove/fill all the *NA* values in our datasets as we can't move forward with the forecasts with incomplete data.
+\
+
+```{r merge data}
+#merge data
+xts_data_fun <- do.call(merge.xts, data_fin_1)
+xts_data_fun <- na.locf(xts_data_fun, na.rm = TRUE)
+
+xts_data_beh <- do.call(merge.xts, data_fin_2)
+xts_data_beh <- na.locf(xts_data_beh, na.rm = TRUE)
+
+xts_data_cat <- do.call(merge.xts, data_fin_3)
+xts_data_cat <- na.locf(xts_data_cat, na.rm = TRUE)
+```
+
+We further align our Datasets a bit to have common starting point and maintain uniformity across all the datasets.
+\
+
+```{r Align}
+## Align Data
+xts_data_fun <- xts_data_fun["2007-12/"]
+xts_data_beh <- xts_data_beh["2007-12/"]
+xts_data_cat <- xts_data_cat["2007-12/"]
+
+
+#clean-up
+rm(data_fin_1)
+rm(data_fin_2)
+rm(data_fin_3)
+```
+
+
+Now we have used and altered the SWfore function from the package [MTS] (https://cran.r-project.org/web/packages/MTS/index.html)
+\
+
+```{r DI Function}
+## Using SWFore to build Diffusion Indexes - Function
+"DiffIdx" <- function(x,orig,m){
+  ### Builds Stock and Watson's diffusion index prediction
+  ### x: observed regressors
+  ### orig: forecast origin
+  ### m: selected number of PCs
+  ###
+  ### Output: Forecasts and MSE of forecasts (if data available)
+  if(!is.matrix(x))x=as.matrix(x)
+  nT=dim(x)[1]
+  k=dim(x)[2]
+  if(orig > nT)orig=nT
+  if(m > k)m=k; if(m < 1)m=1
+  # standardize the predictors
+  x1=x[1:orig,]
+  me=apply(x1,2,mean)
+  se=sqrt(apply(x1,2,var))
+  x1=x
+  for (i in 1:k){
+    x1[,i]=(x1[,i]-me[i])/se[i]
+  }
+  #
+  V1=cov(x1[1:orig,])
+  m1=eigen(V1)
+  sdev=m1$values
+  M=m1$vectors
+  M1=M[,1:m]
+  Dindex=x1%*%M1
+  # y1=y[1:orig]
+  # DF=Dindex[1:orig,]
+  DF=Dindex
+  # mm=lm(y1~DF)
+  # coef=matrix(mm$coefficients,(m+1),1)
+  # coef=matrix(mm$coefficients[-1],(m),1) # exclude the intercept
+  #cat("coefficients: ","\n")
+  #print(round(coef,4))
+  yhat=NULL; MSE=NULL
+  # if(orig < nT){
+  #    newx=cbind(rep(1,(nT-orig)),Dindex[(orig+1):nT,])
+  #    yhat=mm$coefficients[1]+(t(newx)%*%coef)
+  #    err=y[(orig+1):nT]-yhat
+  #    MSE=mean(err^2)
+  #    cat("MSE of out-of-sample forecasts: ",MSE,"\n")
+  # }
+
+  DiffIdx <- xts(DF, index(x1))
+}
+```
+
+ ### Constructing the Diffusion Indexes
+ 
+ \
+
+```{r Building DI}
+#Constructing Diffusion Index
+
+#fundamental
+fundamental_DI <- DiffIdx(xts_data_fun, orig = nrow(xts_data_fun), m = 1)
+head(fundamental_DI)
+
+#behavioral
+behavioral_DI <- DiffIdx(xts_data_beh, orig = nrow(xts_data_beh), m = 1)
+head(behavioral_DI)
+
+#catalyst
+catalyst_DI <- DiffIdx(xts_data_cat, orig = nrow(xts_data_cat), m = 1)
+head(catalyst_DI)
+```
+
+Now we make some visualizations of our Diffusion Indexes to get more insights.
+\ 
+
+```{r DI(S) Plot}
+## Plot DI(s)
+plot_data <- cbind(fundamental_DI, behavioral_DI, catalyst_DI)
+plot(plot_data, main = "Diffusion Index Plot")
+addLegend("topright", on=1,
+          legend.names = c("Fundamental DI", "Behavioral DI", "Catalyst DI"),
+          lty=c(1, 1), lwd=c(2, 1))
+```
+
+We further move on to scale our data. We will be using the package 'roll' to scale our data by calculating the Z-scores.
+\
+
+```{r Scaling obv}
+#Scaling & Standardizing the observation
+library(roll)
+x <- plot_data # we can use plot_data...it is complete
+x$DI <- rowMeans(coredata(plot_data))
+scaled_DI <- roll_scale(x, width = 5, na_restore = FALSE)
+```
+
+Now we quickly plot our scaled Diffusion Indexes to get a rough visualization.
+\
+
+```{r Plot Scaled DI}
+# Plot Scaled DI(s)
+plot(scaled_DI, main = "Diffusion Index Plot - scaled")
+addLegend("topright", on=1,
+          legend.names = c("Fundamental DI", "Behavioral DI", "Catalyst DI"),
+          lty=c(1, 1), lwd=c(2, 1))
+```
+
+We have chosen to make forecasts of S&P 500 from our Diffusion Indexes.
+The Standard and Poor's 500, or simply the S&P 500, is a stock market index tracking the performance of 500 large companies listed on stock exchanges in the United States. It is one of the most commonly followed equity indices.
+
+Here we get our S&P 500 data, change it to monthly data and calculate it's returns.
+\
+
+```{r S&P 500}
+## Getting S&P 500 Data
+SP_500 <- getSymbols (Symbols = 'SPY', src= 'yahoo', auto.assign = FALSE)
+
+library(PerformanceAnalytics)
+SP_500_period <- to.monthly(SP_500)
+
+# We get data starting Jan 2007 for the S&P 500, so we remove everything before Dec 2007, the start of the Diffusion Indexes
+SP_500_period <- SP_500_period["2007-12/"]
+#Calculate S&P Returns
+x$SPR <- Return.calculate(Ad(SP_500_period))
+```
+
+Now it's time to check the correlation between our Diffusion Indexes and the S&P 500 Data.
+We plot a scatter plot to get a quick rough idea, Further, we go on calculating the lags of our Input Data.
+\
+
+```{r plot DI vs SPR}
+# Plot DI vs S&P 500
+plot.default(x$DI, x$SPR)
+```
+```{r apply lag}
+## Lagging Values
+
+xl <- merge(x$DI, scaled_DI)
+diff.lookbacks <- 1:12
+xl_lagged <- do.call(cbind, lapply(diff.lookbacks, function(n) lag(xl, k = n)))
+head(xl_lagged, 12) # Use up to 12 lags...considering this is monthly data, 12m feels adequate
+```
+\
+
+### Applying the Machine Learning Algorithm(s)
+
+We have decided to use different ML Algo's to train and make forecasts, our primary algorithm as of now is Random Forest with approximately 72% accuracy. We further aim on improving the alogrithms and comparing the relative performances.
+
+We have used the caret package (short for Classification And Regression Training) which contains functions to streamline the model training process for complex regression and classification problems.
+
+Here we first load all the required packages then use one hot encoding and try to convert the S&P 500 dataset into a binary dataset. This allows us to successfully carry out our Random Forest classification or any other related methods. Then we split our data into training and testing with 80:20 ratio and train on the first 80% of our data with the remaining to test and make forecasts.
+\
+
+```{r ML}
+
+library(doParallel)
+library(caret)
+
+# Tuning S&P 500
+ret_SP500 <- Return.calculate(Ad(SP_500_period))
+one_hot_ret_SP500 <- ifelse(ret_SP500 > 0, 1, 0)
+newdata <- cbind(lag(xl_lagged, 1), one_hot_ret_SP500)
+newdata1 <- data.frame(newdata)
+newdata1$SP_500.Adjusted <- as.factor(newdata1$SP_500.Adjusted)
+
+## Split Data
+train.perc = 0.8
+train.indx = 1:as.integer(dim(newdata1)[1] * train.perc)
+
+train.data <- newdata1[train.indx,]
+test.data  <- newdata1[-train.indx ,]
+
+set.seed(125)
+
+## Tuning
+myTimeControl <- trainControl(method = "timeslice",
+                              initialWindow = 36,
+                              horizon = 12,
+                              fixedWindow = FALSE,
+                              allowParallel = TRUE,
+                              verboseIter = TRUE)
+
+# tune_grid <- expand.grid(nrounds = 200,
+#                         max_depth = 5,
+#                         eta = 0.05,
+#                         gamma = 0.01,
+#                         colsample_bytree = 0.75,
+#                         min_child_weight = 0,
+#                         subsample = 0.5)
+# 
+# trctrl <- trainControl(method = "cv", number = 5) #Code for xgboost
+
+
+## Training
+tuneLength.num <- 5
+mod.rf <- train(SP_500.Adjusted ~ .,
+                    data = train.data,
+                    method = "ranger",
+                    trControl = myTimeControl,
+                    tuneLength = tuneLength.num,
+                    na.action = na.exclude,
+                    importance = 'impurity')
+
+# mod.xg <- train(SP_500.Adjusted ~ .,
+#                 train.data,
+#                 method = "xgbTree",
+#                 trControl = trctrl,
+#                 tuneGrid = tune_grid,
+#                 tuneLength = 10,
+#                 na.action = na.exclude)  #Code for xgboost
+
+mod.rf$results
+plot(varImp(mod.rf))
+```
+
+We now get some visualizations of our forecasts, a density, box and scatter plot.
+\
+
+```{r ML_plot}
+## Visualisations
+
+featurePlot(x = train.data[, 1:18], 
+            y = train.data$SP_500.Adjusted, 
+            plot = "density",
+            strip=strip.custom(par.strip.text=list(cex=.7)),
+            scales = list(x = list(relation="free"), 
+                          y = list(relation="free")))
+
+featurePlot(x = train.data[, 1:18], 
+            y = train.data$SP_500.Adjusted, 
+            plot = "box",
+            strip=strip.custom(par.strip.text=list(cex=.7)),
+            scales = list(x = list(relation="free"), 
+                          y = list(relation="free")))
+
+featurePlot(x = x[, 1:3], 
+            y = SP_500_period$SP_500.Adjusted,  
+            plot = "scatter",
+            type = c("p", "smooth"),
+            layout = c(3, 1))
+```
+
+
+Finally we use the predict() function to get further predictions and take a look at it.
+\
+
+```{r Fore}
+## Forecast
+
+pred.rf <- predict(mod.rf, newdata = test.data)
+head(pred.rf)
+confusionMatrix(pred.rf, test.data$SP_500.Adjusted)
+
+```
