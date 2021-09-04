@@ -443,6 +443,8 @@ We now get some visualizations of our forecasts, a density, box and scatter plot
 ```{r ML_plot}
 ## Visualisations
 
+plot(mod.rf)
+
 featurePlot(x = train.data[, 1:18], 
             y = train.data$SP_500.Adjusted, 
             plot = "density",
